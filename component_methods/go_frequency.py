@@ -1,6 +1,6 @@
 import pandas as pd
 
-from component_methods import ComponentMethod
+from component_methods import ComponentMethod, UntrainedComponentError
 from Utils import ColourClass
 from GOTool.GeneOntology import GeneOntology
 
@@ -11,7 +11,7 @@ class GOFrequency(ComponentMethod):
         super(GOFrequency, self).__init__()
         self.colour = ColourClass.bcolors.BOLD_CYAN
         self.go_freqs = None
-        self.go = None
+        self.trained_ = False
 
     def train(self, function_assignment, **kwargs):
         """
@@ -41,7 +41,7 @@ class GOFrequency(ComponentMethod):
 
         self.tell('Extracting GO term frequencies')
         counts = function_assignment.groupby('goterm').count()
-        for goterm, prot in counts.iterrow():
+        for goterm, prot in counts.iterrows():
             data['goterm'].append(goterm)
             data['domain'].append(go.find_term(goterm).domain)
             data['protein count'].append(prot['protein'])
@@ -58,13 +58,52 @@ class GOFrequency(ComponentMethod):
         all_sum = self.go_freqs['protein count'].sum()
         self.go_freqs['prior_overall'] = self.go_freqs['protein count'] / all_sum
         self.go_freqs.drop(columns='domain_sum', inplace=True)
+        self.trained_ = True
 
-    def predict(self, proteins, k=30, **kwargs):
+    def save_trained_model(self, output, **kwargs):
         """
+        Saves the trained model onto disk.
+        Parameters
+        ----------
+        output : str
+            Filename to store the frequency information
+        kwargs
+            * fmt : str, default 'tsv'
+                you can set this parameter to store the model in pickle format, which
+                is faster to load later on. Possible values are 'tsv' and 'pickle'
+        """
+        fmt = kwargs.get('fmt', 'tsv')
+        if fmt == 'tsv':
+            self.go_freqs.to_csv(output, sep='\t', index=False)
+        elif fmt == 'pickle':
+            self.go_freqs.to_pickle(output)
+
+    def load_trained_model(self, model_filename, **kwargs):
+        """
+        Recovers the state of the component model after training, in order to
+        make predictions without re-training the component
 
         Parameters
         ----------
-         proteins : set or list
+        model_filename : str
+            Filename to store the frequency information
+        kwargs
+            * fmt : str, default 'tsv'
+                you can set this parameter to store the model in pickle format, which
+                is faster to load later on. Possible values are 'tsv' and 'pickle'
+        """
+        fmt = kwargs.get('fmt', 'tsv')
+        if fmt == 'tsv':
+            self.go_freqs = pd.read_csv(model_filename, sep='\t')
+        elif fmt == 'pickle':
+            self.go_freqs = pd.read_pickle(model_filename)
+        self.trained_ = True
+
+    def predict(self, proteins, k=30, **kwargs):
+        """
+        Parameters
+        ----------
+        proteins : set or list
             set of proteins to which
         k : int, default 30
             the number of GO terms to be returned per protein, the top-k
@@ -85,6 +124,9 @@ class GOFrequency(ComponentMethod):
             k predictions will be made per (protein, domain) pair
 
         """
+        if not self.trained_:
+            self.warning('The model is not trained, predictions are not possible')
+            raise UntrainedComponentError
         mode = kwargs.get('mode', 'domain')
         mode = 'prior' if mode == 'domain' else 'prior_overall'
         if isinstance(proteins, list):

@@ -104,7 +104,7 @@ if __name__ == '__main__':
     train.add_argument('--fasta-compontents',
                        help='FASTA file used for training the component models',
                        required=True)
-    train.add_argument('--fasta-lrt',
+    train.add_argument('--fasta-ltr',
                        help='FASTA file used for training the LTR model',
                        required=True)
     train.add_argument('--GOA-components',
@@ -115,7 +115,7 @@ if __name__ == '__main__':
                        required=True)
     train.add_argument('--homologs',
                        help='A tab separated file that lists a protein in the fasta file, a protein from the '
-                            'STRING database, the bit-score, and the NCBI taxonomy id of the STRING protein in '
+                            'STRING database, the bit-score, trand the NCBI taxonomy id of the STRING protein in '
                             'each line',
                        required=True)
     train.add_argument('--output-directory',

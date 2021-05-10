@@ -6,6 +6,7 @@ class FancyApp(object):
 
     def __init__(self):
         self.colour = ColourClass.bcolors.BOLD_BLUE
+        self.handle_ = str(self.__class__.__name__)
         self.__verbose__ = True
 
     @staticmethod
@@ -22,8 +23,9 @@ class FancyApp(object):
 
     def tell(self, *args, **kwargs):
         if self.__verbose__:
-            print(self.colour + '[' + time.strftime('%Y-%m-%d %H:%M:%S') + ' ' + str(self.__class__.__name__) + ']: ' +
-                  ColourClass.bcolors.ENDC + " ".join(map(str, args)), **kwargs)
+            FancyApp.yell(self.colour, handle=str(self.handle_), *args, **kwargs)
+            # print(self.colour + '[' + time.strftime('%Y-%m-%d %H:%M:%S') + ' ' + str(self.__class__.__name__) + ']: ' +
+            #       ColourClass.bcolors.ENDC + " ".join(map(str, args)), **kwargs)
 
     def die(self, *args, **kwargs):
         """

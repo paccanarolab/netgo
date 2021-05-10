@@ -2,6 +2,12 @@ import abc
 
 from Utils import FancyApp
 
+
+class UntrainedComponentError(Exception):
+    """Raised when a predict is attempted on an untrained model"""
+    pass
+
+
 class ComponentMethod(FancyApp.FancyApp):
 
     @abc.abstractmethod
@@ -47,4 +53,32 @@ class ComponentMethod(FancyApp.FancyApp):
         -----
         The train method will be called once from the predict command, but for other
         uses the underlying implementation might indicate to run it more than once.
+        """
+
+    @abc.abstractmethod
+    def save_trained_model(self, output, **kwargs):
+        """
+        Saves the trained model onto disk.
+        Parameters
+        ----------
+        output : str
+            Where to store the model, it could be a file or a directory
+            depending on the model.
+        kwargs
+            to be handled by each component
+        """
+
+    @abc.abstractmethod
+    def load_trained_model(self, model_filename, **kwargs):
+        """
+        Recovers the state of the component model after training, in order to
+        make predictions without re-training the component
+
+        Parameters
+        ----------
+        model_filename : str
+            Path to the component model, it could be a file or directory depending
+            on the model.
+        kwargs
+            will be handled by the implementation accordingly
         """
