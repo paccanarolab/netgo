@@ -15,17 +15,18 @@ from scipy import sparse
 from FASTATool import FastaParser
 from Utils import FancyApp
 from itertools import product
+from rich.progress import track
 
 import os
 
 class KMerFasta(FancyApp.FancyApp):
 
     AMINOACIDS = [
-        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P',
-        'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'Y', 'Z'
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'O',
+        'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'Y', 'Z', 'X', '*'
     ]
 
-    def __init__(self, fasta, k=3, dense=True):
+    def __init__(self, fasta, k=3, dense=True, fasta_header=None):
         """
         Parameters
         ----------
@@ -35,6 +36,8 @@ class KMerFasta(FancyApp.FancyApp):
             length of the subsequences (k-mers)
         dense : bool, default True
             whether to return dense arrays, if False, a sparse matrix will be returned instead
+        fasta_header : str, default None
+            custom regex to pass to the fasta parser
         """
         super(KMerFasta, self).__init__()
         self.fasta = os.path.realpath(fasta)
@@ -43,7 +46,7 @@ class KMerFasta(FancyApp.FancyApp):
         self.kmer_idx = list(''.join(i) for i in product(self.AMINOACIDS, repeat=self.k))
 
         self.tell('parsing fasta file')
-        self.fp = FastaParser.FastaFile(self.fasta)
+        self.fp = FastaParser.FastaFile(self.fasta, custom_header=fasta_header)
         self.fp.buildBrowsableDict()
 
         self.tell('building protein index')
@@ -56,7 +59,9 @@ class KMerFasta(FancyApp.FancyApp):
     def encode(self):
         self.tell(f'Encoding fasta into kMer format')
         encoding = {}
-        for p_i, protein in enumerate(self.protein_idx):
+        for p_i, protein in track(enumerate(self.protein_idx),
+                                  total=len(self.protein_idx),
+                                  description='Processing...'):
             sequence = self.fp.information['proteins'][protein]
             for i in range(len(sequence) - self.k):
                 kmer = sequence[i: i+self.k]

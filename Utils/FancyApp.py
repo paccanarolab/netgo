@@ -23,7 +23,7 @@ class FancyApp(object):
 
     def tell(self, *args, **kwargs):
         if self.__verbose__:
-            FancyApp.yell(self.colour, handle=str(self.handle_), *args, **kwargs)
+            FancyApp.yell(self.colour, str(self.handle_), *args, **kwargs)
             # print(self.colour + '[' + time.strftime('%Y-%m-%d %H:%M:%S') + ' ' + str(self.__class__.__name__) + ']: ' +
             #       ColourClass.bcolors.ENDC + " ".join(map(str, args)), **kwargs)
 

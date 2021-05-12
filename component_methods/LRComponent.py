@@ -195,3 +195,4 @@ class LRComponent(ComponentMethod):
                                                     feature_index_file,
                                                     fmt)
 
+        y_pred = self.model_.predict_
