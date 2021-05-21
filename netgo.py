@@ -101,16 +101,16 @@ if __name__ == '__main__':
         help='train command'
     )
     train.set_defaults(func=commands.train)
-    train.add_argument('--fasta-compontents',
+    train.add_argument('--fasta-components',
                        help='FASTA file used for training the component models',
                        required=True)
     train.add_argument('--fasta-ltr',
                        help='FASTA file used for training the LTR model',
                        required=True)
-    train.add_argument('--GOA-components',
+    train.add_argument('--goa-components',
                        help='GOA annotations in GAF format to be used for train the component models',
                        required=True)
-    train.add_argument('--GOA-ltr',
+    train.add_argument('--goa-ltr',
                        help='GOA annotations in GAF format to be used for train the LTR model',
                        required=True)
     train.add_argument('--homologs',
@@ -121,15 +121,19 @@ if __name__ == '__main__':
     train.add_argument('--output-directory',
                        help='path to an (ideally) empty directory where trained model files will be stored',
                        required=True)
-    predict.add_argument('--interpro-output',
-                         help='InterPro output file',
-                         required=True)
-    predict.add_argument('--profet-output',
-                         help='ProFET output file',
-                         required=True)
-    predict.add_argument('--blast-output',
-                         help='BLAST output file for BLAST-kNN',
-                         required=True)
+    train.add_argument('--kmer',
+                       help='KMer file: a tab separated file with columns '
+                            'accession, kmer, frequency (no header)',
+                       required=True)
+    train.add_argument('--interpro-output',
+                       help='InterPro output file',
+                       required=True)
+    train.add_argument('--profet-output',
+                       help='ProFET output file (usually named trainingSetFeatures.csv)',
+                       required=True)
+    train.add_argument('--blast-output',
+                       help='BLAST output file for BLAST-kNN',
+                       required=True)
 
     args = parser.parse_args()
     args.func(args)

@@ -4,6 +4,12 @@ import pandas as pd
 import scipy
 
 
+def save_list_to_file(item_list, filename):
+    with open(filename, 'w') as out:
+        for item in item_list:
+            out.write(str(item) + '\n')
+
+
 def all_indices(value, qlist):
     indices = []
     idx = -1

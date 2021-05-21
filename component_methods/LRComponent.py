@@ -109,7 +109,7 @@ class LRComponent(ComponentMethod):
         if lr_kwargs:
             self.model_ = LogisticRegression(**lr_kwargs)
         else:
-            self.model_ = LogisticRegression()
+            self.model_ = LogisticRegression(multi_class='ovr')
         self.model_.fit(X, y)
         self.trained_ = True
 
@@ -195,4 +195,4 @@ class LRComponent(ComponentMethod):
                                                     feature_index_file,
                                                     fmt)
 
-        y_pred = self.model_.predict_
+        y_pred = self.model_.predict_proba(X)

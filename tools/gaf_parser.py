@@ -41,7 +41,6 @@ class GAFParser(FancyApp.FancyApp):
         """
         super(GAFParser, self).__init__()
         self.gaf_file = gaf_file
-        self.goa = pd.read_
         self.tell(f'Loading GAF file: {self.gaf_file}')
         self.goa = pd.read_csv(self.gaf_file,
                           sep='\t',
