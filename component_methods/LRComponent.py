@@ -1,6 +1,8 @@
 from component_methods import ComponentMethod
 from Utils import ColourClass
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, SGDClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 from scipy import sparse
 import numpy as np
 import pandas as pd
@@ -16,7 +18,7 @@ class LRComponent(ComponentMethod):
         self.type_ = None
         self.trained_ = False
 
-    def build_dataset_(self, feature_file, feature_index_file, fmt, function_assignment=None):
+    def build_dataset_(self, feature_file, protein_index_file, fmt, function_assignment=None):
         """
         From arguments passed to `train` or `predict`, return a sklearn-compatible dataset
 
@@ -47,19 +49,20 @@ class LRComponent(ComponentMethod):
             features = df[feature_columns].values
 
         if fmt not in ['tab', 'pickle']:
-            self.tell(f'Loading feature index file {feature_index_file}')
-            index = [
-                line.strip() for line in open(feature_index_file)
-            ]
+            self.tell(f'Loading protein index file {protein_index_file}')
+            index = [line.strip() for line in open(protein_index_file)]
 
         self.tell('Building dataset')
         X = []
         y = []
         for _, row in function_assignment.iterrows():
             y.append(row['goterm'])
-            X.append(features[index[row['protein']]])
+            X.append(features[index.index(row['protein'])])
+        #X = sparse.csr_matrix(X, dtype=np.float64)
         X = np.array(X)
         y = np.array(y)
+        self.tell('X shape', X.shape)
+        self.tell('Y unique', len(np.unique(y)))
         return X, y, features, index
 
     def train(self, function_assignment, **kwargs):
@@ -83,7 +86,7 @@ class LRComponent(ComponentMethod):
             * feature_file : str
                 Path to a file where to read the features from. How the file will be
                 read will depend on the `fmt` argument
-            * feature_index_file : str
+            * protein_index_file : str
                 Path to a file that has a single protein id that matches the rows of
                 `feature_file`, this is ignored when the `fmt` is `tab` or `pickle`
             * fmt : str, default 'npy'
@@ -109,7 +112,10 @@ class LRComponent(ComponentMethod):
         if lr_kwargs:
             self.model_ = LogisticRegression(**lr_kwargs)
         else:
-            self.model_ = LogisticRegression(multi_class='ovr')
+            #self.model_ = LogisticRegression(multi_class='ovr', solver='saga', verbose=1, n_jobs=35)
+            self.model_ = make_pipeline(
+                StandardScaler(),
+                SGDClassifier(loss='log', verbose=1, n_jobs=35))
         self.model_.fit(X, y)
         self.trained_ = True
 

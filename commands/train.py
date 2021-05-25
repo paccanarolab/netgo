@@ -26,6 +26,7 @@ class Train(FancyApp.FancyApp):
         self.goa_ltr = None
         self.homologs = args.homologs
         self.output_directory = args.output_directory
+        self.protein_index = os.path.join(self.output_directory, 'protein_idx-train.txt')
         self.interpro = args.interpro_output
         self.interpro_features_npy = os.path.join(self.output_directory,
                                                   f'{os.path.basename(self.interpro)}-train.npy')
@@ -66,7 +67,7 @@ class Train(FancyApp.FancyApp):
         lr_kmer.train(self.goa_components,
                       type='kmer',
                       feature_file=self.kmer_features_npy,
-                      feature_index_file=self.kmer_features_index)
+                      feature_index_file=self.protein_index)
         lr_kmer.save_trained_model(os.path.join(self.output_directory, 'LR-kmer.model'))
 
         self.tell('Training LR-InterPro')
@@ -74,7 +75,7 @@ class Train(FancyApp.FancyApp):
         lr_kmer.train(self.goa_components,
                       type='interpro',
                       feature_file=self.interpro_features_npy,
-                      feature_index_file=self.interpro_features_index)
+                      feature_index_file=self.protein_index)
         lr_kmer.save_trained_model(os.path.join(self.output_directory, 'LR-InterPro.model'))
 
         self.tell('Training LR-ProFET')
@@ -82,7 +83,7 @@ class Train(FancyApp.FancyApp):
         lr_kmer.train(self.goa_components,
                       type='profet',
                       feature_file=self.profet_features_npy,
-                      feature_index_file=self.profet_features_index)
+                      feature_index_file=self.protein_index)
         lr_kmer.save_trained_model(os.path.join(self.output_directory, 'LR-ProFET.model'))
 
 
@@ -93,8 +94,7 @@ class Train(FancyApp.FancyApp):
         proteins = sorted(list(proteins))
 
         self.tell('Saving protein index')
-        Utilities.save_list_to_file(proteins,
-                                    os.path.join(self.output_directory, 'protein_idx-train.txt'))
+        Utilities.save_list_to_file(proteins, self.protein_index)
 
         if not os.path.exists(self.profet_features_npy):
             self.tell('Building ProFET Feature Matrix')
