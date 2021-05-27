@@ -2,7 +2,7 @@ from component_methods import ComponentMethod
 from Utils import ColourClass
 from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MaxAbsScaler
 from rich.progress import track
 from scipy import sparse
 import numpy as np
@@ -68,12 +68,14 @@ class LRComponent(ComponentMethod):
                 data.append(x[col_idx])
                 row_ind.append(row_idx)
                 col_ind.append(col_idx)
+
         X = sparse.csr_matrix((data, (row_ind, col_ind)),
-                              shape=(row_idx, len(feature_columns)),
+                              shape=(count_annots, features.shape[1]),
                               dtype=np.float64)
         y = np.array(y)
         self.tell('X shape', X.shape)
         self.tell('Y unique', len(np.unique(y)))
+
         return X, y, features, index
 
     def train(self, function_assignment, **kwargs):
@@ -125,7 +127,7 @@ class LRComponent(ComponentMethod):
         else:
             #self.model_ = LogisticRegression(multi_class='ovr', solver='saga', verbose=1, n_jobs=35)
             self.model_ = make_pipeline(
-                StandardScaler(with_mean=False),
+                MaxAbsScaler(),
                 SGDClassifier(loss='log', verbose=1, n_jobs=35))
         self.model_.fit(X, y)
         self.trained_ = True
