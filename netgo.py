@@ -108,10 +108,12 @@ if __name__ == '__main__':
                        help='FASTA file used for training the LTR model',
                        required=True)
     train.add_argument('--goa-components',
-                       help='GOA annotations in GAF format to be used for train the component models',
+                       help='GOA annotations in TSV format to be used for train the component models.'
+                            'Columns are: "protein" and "goterm", no header.',
                        required=True)
     train.add_argument('--goa-ltr',
-                       help='GOA annotations in GAF format to be used for train the LTR model',
+                       help='GOA annotations in TSV format to be used for train the LTR model.'
+                            'Columns are: "protein" and "goterm", no header',
                        required=True)
     train.add_argument('--homologs',
                        help='A tab separated file that lists a protein in the fasta file, a protein from the '
@@ -135,8 +137,30 @@ if __name__ == '__main__':
                        help='BLAST output file for BLAST-kNN',
                        required=True)
 
+    filter_gaf = subparsers.add_parser(
+        'filter-gaf',
+        description='NetGO filter GAF: Given a GAF file and a list of allowed GO terms, it generates'
+                    'an annotation file compatible with the training and testing commands. Annotations'
+                    'are uppropagated.',
+        help='filter GAF utility'
+    )
+    filter_gaf.set_defaults(func=commands.filter_gaf)
+    filter_gaf.add_argument('--gaf',
+                            help='GOA annotation file in GAF format',
+                            required=True)
+    filter_gaf.add_argument('--allowed-terms',
+                            help='text file containing allowed go term (one per line)',
+                            required=True)
+    filter_gaf.add_argument('--obo',
+                            help='go.obo file, used to build the structure of the Gene Ontology',
+                            required=True)
+    filter_gaf.add_argument('--output',
+                            help='output file',
+                            required=True)
+
     args = parser.parse_args()
     args.func(args)
+
 
     # try:
     #     args.func(args)

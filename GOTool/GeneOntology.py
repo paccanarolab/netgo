@@ -368,9 +368,16 @@ class GeneOntology(FancyApp.FancyApp):
                 annotated_terms.add(term)
 
         # up propagate
+        if self.__verbose__:
+            prog = ProgressBar.ProgressBar(0, len(annotated_terms), 77, mode='dynamic',
+                                           char='-')
         for term in annotated_terms:
             term.up_propagate_annotations(organism_name, relations=relations)
-
+            if self.__verbose__:
+                prog.increment_amount()
+                prog.print_bar()
+        if self.__verbose__:
+            prog.finish_bar()
     def dump_annotations(self, organism_name, out, format='pandas'):
         if format == 'pandas':
             self.get_annotations(organism_name).to_pickle(out)

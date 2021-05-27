@@ -8,6 +8,7 @@ from component_methods.go_frequency import GOFrequency
 from component_methods.LRComponent import LRComponent
 from rich.progress import track
 import numpy as np
+import pandas as pd
 
 import os
 
@@ -62,29 +63,44 @@ class Train(FancyApp.FancyApp):
 
     def train_component_models(self):
         # logistic regression models
-        self.tell('Training LR-kmer')
-        lr_kmer = LRComponent()
-        lr_kmer.train(self.goa_components,
-                      type='kmer',
-                      feature_file=self.kmer_features_npy,
-                      feature_index_file=self.protein_index)
-        lr_kmer.save_trained_model(os.path.join(self.output_directory, 'LR-kmer.model'))
+        lr_kmer_model = os.path.join(self.output_directory, 'LR-kmer.model')
+        if not os.path.exists(lr_kmer_model):
+            self.tell('Training LR-kmer')
+            lr_kmer = LRComponent()
+            lr_kmer.train(self.goa_components,
+                          type='kmer',
+                          feature_file=self.kmer_features_npy,
+                          feature_index_file=self.protein_index)
+            lr_kmer.save_trained_model(lr_kmer_model)
+        else:
+            self.tell(f'LR-kmer model is already trained and'
+                      f' located here: {lr_kmer_model}')
 
+        lr_interpro_model = os.path.join(self.output_directory, 'LR-InterPro.model')
         self.tell('Training LR-InterPro')
-        lr_kmer = LRComponent()
-        lr_kmer.train(self.goa_components,
-                      type='interpro',
-                      feature_file=self.interpro_features_npy,
-                      feature_index_file=self.protein_index)
-        lr_kmer.save_trained_model(os.path.join(self.output_directory, 'LR-InterPro.model'))
+        if not os.path.exists(lr_interpro_model):
+            lr_interpro = LRComponent()
+            lr_interpro.train(self.goa_components,
+                          type='interpro',
+                          feature_file=self.interpro_features_npy,
+                          feature_index_file=self.protein_index)
+            lr_interpro.save_trained_model(lr_interpro_model)
+        else:
+            self.tell(f'LR-InterPro model is already trained and'
+                      f' located here: {lr_interpro_model}')
 
-        self.tell('Training LR-ProFET')
-        lr_kmer = LRComponent()
-        lr_kmer.train(self.goa_components,
-                      type='profet',
-                      feature_file=self.profet_features_npy,
-                      feature_index_file=self.protein_index)
-        lr_kmer.save_trained_model(os.path.join(self.output_directory, 'LR-ProFET.model'))
+        lr_profet_model = os.path.join(self.output_directory, 'LR-ProFET.model')
+        if not os.path.exists(lr_profet_model):
+            self.tell('Training LR-ProFET')
+            lr_profet = LRComponent()
+            lr_profet.train(self.goa_components,
+                          type='profet',
+                          feature_file=self.profet_features_npy,
+                          feature_index_file=self.protein_index)
+            lr_profet.save_trained_model(lr_profet_model)
+        else:
+            self.tell(f'LR-ProFET model is already trained and'
+                      f' located here: {lr_profet_model}')
 
 
     def make_feature_matrices(self):
@@ -143,9 +159,13 @@ class Train(FancyApp.FancyApp):
 
     def load_annotations(self):
         self.tell('Loading GO annotations for component models')
-        self.goa_components = GAFParser(self.goa_components_file).get_assignment()
+        self.goa_components = pd.read_csv(self.goa_components_file,
+                                          sep='\t',
+                                          names=['protein', 'goterm'])
         self.tell('Loading GO annotations for LTR')
-        self.goa_ltr = GAFParser(self.goa_ltr_file).get_assignment()
+        self.goa_ltr = pd.read_csv(self.goa_ltr_file,
+                                   sep='\t',
+                                   names=['protein', 'goterm'])
 
     def load_fastas(self):
         self.tell('Loading Components Fasta')

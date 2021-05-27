@@ -8,3 +8,9 @@ def train(args):
     from commands.train import Train
     t = Train(args)
     t.run()
+
+
+def filter_gaf(args):
+    from commands.filter_gaf import FilterGAF
+    f = FilterGAF(args)
+    f.run()

@@ -3,6 +3,7 @@ from Utils import ColourClass
 from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+from rich.progress import track
 from scipy import sparse
 import numpy as np
 import pandas as pd
@@ -53,13 +54,23 @@ class LRComponent(ComponentMethod):
             index = [line.strip() for line in open(protein_index_file)]
 
         self.tell('Building dataset')
-        X = []
+        data = []
+        row_ind = []
+        col_ind = []
         y = []
-        for _, row in function_assignment.iterrows():
+        count_annots = function_assignment.shape[0]
+        for row_idx, row in track(function_assignment.iterrows(),
+                                  total=count_annots,
+                                  description='Reading features...'):
             y.append(row['goterm'])
-            X.append(features[index.index(row['protein'])])
-        #X = sparse.csr_matrix(X, dtype=np.float64)
-        X = np.array(X)
+            x = features[index.index(row['protein'])]
+            for col_idx in np.where(x != 0)[0]:
+                data.append(x[col_idx])
+                row_ind.append(row_idx)
+                col_ind.append(col_idx)
+        X = sparse.csr_matrix((data, (row_ind, col_ind)),
+                              shape=(row_idx, len(feature_columns)),
+                              dtype=np.float64)
         y = np.array(y)
         self.tell('X shape', X.shape)
         self.tell('Y unique', len(np.unique(y)))
@@ -114,7 +125,7 @@ class LRComponent(ComponentMethod):
         else:
             #self.model_ = LogisticRegression(multi_class='ovr', solver='saga', verbose=1, n_jobs=35)
             self.model_ = make_pipeline(
-                StandardScaler(),
+                StandardScaler(with_mean=False),
                 SGDClassifier(loss='log', verbose=1, n_jobs=35))
         self.model_.fit(X, y)
         self.trained_ = True
