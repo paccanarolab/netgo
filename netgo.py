@@ -136,6 +136,10 @@ if __name__ == '__main__':
     train.add_argument('--blast-output',
                        help='BLAST output file for BLAST-kNN',
                        required=True)
+    train.add_argument('--goterms',
+                       help='List of GO terms to create LR models. a file with a '
+                            'GO term per line.',
+                       default='all')
 
     filter_gaf = subparsers.add_parser(
         'filter-gaf',

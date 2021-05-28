@@ -51,6 +51,9 @@ class Train(FancyApp.FancyApp):
         # blast is to train BLAST-kNN. For training, that means
         # this is a blast between SwissProt and proteins found in
         # GOA_components
+        self.LR_goterms = args.goterms
+        if self.LR_goterms != 'all':
+            self.LR_goterms = [line.strip() for line in open(args.goterms)]
 
     def run(self):
         self.load_fastas()
@@ -70,8 +73,9 @@ class Train(FancyApp.FancyApp):
             lr_kmer.train(self.goa_components,
                           type='kmer',
                           feature_file=self.kmer_features_npy,
-                          feature_index_file=self.protein_index)
-            lr_kmer.save_trained_model(lr_kmer_model)
+                          feature_index_file=self.protein_index,
+                          output_dir=lr_kmer_model,
+                          goterms=self.LR_goterms)
         else:
             self.tell(f'LR-kmer model is already trained and'
                       f' located here: {lr_kmer_model}')
@@ -81,10 +85,11 @@ class Train(FancyApp.FancyApp):
         if not os.path.exists(lr_interpro_model):
             lr_interpro = LRComponent()
             lr_interpro.train(self.goa_components,
-                          type='interpro',
-                          feature_file=self.interpro_features_npy,
-                          feature_index_file=self.protein_index)
-            lr_interpro.save_trained_model(lr_interpro_model)
+                              type='interpro',
+                              feature_file=self.interpro_features_npy,
+                              feature_index_file=self.protein_index,
+                              output_dir=lr_interpro_model,
+                              goterms=self.LR_goterms)
         else:
             self.tell(f'LR-InterPro model is already trained and'
                       f' located here: {lr_interpro_model}')
@@ -94,10 +99,11 @@ class Train(FancyApp.FancyApp):
             self.tell('Training LR-ProFET')
             lr_profet = LRComponent()
             lr_profet.train(self.goa_components,
-                          type='profet',
-                          feature_file=self.profet_features_npy,
-                          feature_index_file=self.protein_index)
-            lr_profet.save_trained_model(lr_profet_model)
+                            type='profet',
+                            feature_file=self.profet_features_npy,
+                            feature_index_file=self.protein_index,
+                            output_dir=lr_profet_model,
+                            goterms=self.LR_goterms)
         else:
             self.tell(f'LR-ProFET model is already trained and'
                       f' located here: {lr_profet_model}')

@@ -5,9 +5,11 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import MaxAbsScaler
 from rich.progress import track
 from scipy import sparse
+from joblib import dump, load, Parallel, delayed
 import numpy as np
 import pandas as pd
-from joblib import dump, load
+
+import os
 
 
 class LRComponent(ComponentMethod):
@@ -19,20 +21,26 @@ class LRComponent(ComponentMethod):
         self.type_ = None
         self.trained_ = False
 
-    def build_dataset_(self, feature_file, protein_index_file, fmt, function_assignment=None):
+    def build_dataset_(self, feature_file, protein_index_file, fmt,
+                       function_assignment=None,
+                       goterms='all'):
         """
         From arguments passed to `train` or `predict`, return a sklearn-compatible dataset
 
         Returns
         -------
-        X : array
+        X : array (n_proteins, n_features)
             features
-        y : array
+        y : array (n_proteins, n_terms)
             labels (empty if `function_assigment` is set to None)
+            the encoding is Binary, and each column is suitable for training a Logistic Regression
         features : array
             features used to build `X`
-        index : list
-            protein of the feature file
+        protein_index : list
+            protein index, this is used for both the training data as well as the labels matrix
+        terms_index : list
+            goterm index (compatible with the labels matrix)
+
         """
         features, index = None, None
         self.tell(f'Loading features from {feature_file}')
@@ -54,29 +62,43 @@ class LRComponent(ComponentMethod):
             index = [line.strip() for line in open(protein_index_file)]
 
         self.tell('Building dataset')
-        data = []
-        row_ind = []
-        col_ind = []
-        y = []
-        count_annots = function_assignment.shape[0]
-        for row_idx, row in track(function_assignment.iterrows(),
-                                  total=count_annots,
-                                  description='Reading features...'):
-            y.append(row['goterm'])
-            x = features[index.index(row['protein'])]
-            for col_idx in np.where(x != 0)[0]:
-                data.append(x[col_idx])
-                row_ind.append(row_idx)
-                col_ind.append(col_idx)
 
-        X = sparse.csr_matrix((data, (row_ind, col_ind)),
-                              shape=(count_annots, features.shape[1]),
-                              dtype=np.float64)
-        y = np.array(y)
-        self.tell('X shape', X.shape)
-        self.tell('Y unique', len(np.unique(y)))
+        pivot = function_assignment.pivot_table(index='protein', columns='goterm', aggfunc=lambda x: 1, fill_value=0)
+        if goterms != 'all':
+            pivot = pivot[goterms]
 
-        return X, y, features, index
+        term_index = pivot.columns.to_list()
+        protein_index = pivot.index.to_list()
+        X = features[np.where(np.isin(index, protein_index))[0]]
+        y = pivot.values
+
+        return X, y, features, protein_index, term_index
+
+    def train_single_term(self, X, y, term_index, term, output_dir):
+        """
+        Utility function that trains a linear regression for a single term
+
+        Parameters
+        ----------
+        X : array (n_proteins, n_features)
+            features
+        y : array (n_proteins, n_terms)
+            labels
+        term_index : list
+            indices of the columns of `y`
+        term : str
+            GO term to train
+        output_dir : str
+            output_directory where the model will be saved
+        """
+        model = make_pipeline(
+            MaxAbsScaler(),
+            SGDClassifier(loss='log', n_jobs=35)
+        )
+        model.fit(X, y[:, term_index.index(term)])
+        self.save_trained_model(output_dir,
+                                goterm=term,
+                                model=model)
 
     def train(self, function_assignment, **kwargs):
         """
@@ -105,6 +127,12 @@ class LRComponent(ComponentMethod):
             * fmt : str, default 'npy'
                 Format of the features file, the file loader will be picked accordingly.
                 Possible values are 'npy', 'npz', 'tab', 'pickle'
+            * output_dir : str
+                Path to the directory where the models will be saved
+            * goterms : str or list, default 'all'
+                The list of goterms that will be used to train a logistic regression,
+                all terms in `function_assignment` will create a LR model by default.
+
         Notes
         -----
         Priors are learnt separately per GO subdomain
@@ -115,21 +143,29 @@ class LRComponent(ComponentMethod):
         feature_file = kwargs['feature_file']
         feature_index_file = kwargs.get('feature_index_file', None)
         fmt = kwargs.get('fmt', 'npy')
+        output_dir = kwargs['output_dir']
+        goterms = kwargs['goterms']
 
-        X, y, features, index = self.build_dataset_(feature_file,
-                                                    feature_index_file,
-                                                    fmt,
-                                                    function_assignment=function_assignment)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            with open(os.path.join(output_dir, f'{output_dir}.info'), 'w', newline='\n') as f:
+                f.write(f'{self.type_}\n')
+
+        X, y, features, protein_index, term_index = self.build_dataset_(
+            feature_file, feature_index_file,
+            fmt, function_assignment=function_assignment,
+            goterms=goterms
+        )
 
         self.tell('training Logistic Regression')
-        if lr_kwargs:
-            self.model_ = LogisticRegression(**lr_kwargs)
-        else:
-            #self.model_ = LogisticRegression(multi_class='ovr', solver='saga', verbose=1, n_jobs=35)
-            self.model_ = make_pipeline(
-                MaxAbsScaler(),
-                SGDClassifier(loss='log', verbose=1, n_jobs=35))
-        self.model_.fit(X, y)
+
+        Parallel(n_jobs=4, max_nbytes=1e6)(
+            delayed(self.train_single_term)(X, y, term_index, term, output_dir) for term in term_index
+        )
+        # for term in track(term_index, description='Training models'):
+        #     self.train_single_term(X, y, term_index, term, output_dir)
+
+
         self.trained_ = True
 
     def save_trained_model(self, output, **kwargs):
@@ -139,15 +175,20 @@ class LRComponent(ComponentMethod):
         ----------
         output : str
             Filename to store the sk-learn logistic regression model
-
+        kwargs
+            Required information to train this model:
+            * goterm : str
+                The GO term that corresponds to this model
+            * model : sklearn model
+                The model to be saved
         Notes
         -----
         * An additional file with extension .info will be generated in order to load the feature type
         * sklearn models are saved/loaded using joblib
         """
-        dump(self.model_, output)
-        with open(f'{output}.info', 'w', newline='\n') as f:
-            f.write(f'{self.type_}\n')
+        goterm = kwargs['goterm'].replace(':' ,'_')
+        model = kwargs['model']
+        dump(model, os.path.join(output, f'{goterm}.lr_model'))
 
     def load_trained_model(self, model_filename, **kwargs):
         """
