@@ -140,6 +140,8 @@ if __name__ == '__main__':
                        help='List of GO terms to create LR models. a file with a '
                             'GO term per line.',
                        default='all')
+    train.add_argument('--obo',
+                       help='Path to a go.obo file containing the GO structure')
 
     filter_gaf = subparsers.add_parser(
         'filter-gaf',

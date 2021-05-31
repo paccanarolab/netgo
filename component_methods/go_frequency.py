@@ -3,7 +3,7 @@ import pandas as pd
 from component_methods import ComponentMethod, UntrainedComponentError
 from Utils import ColourClass
 from GOTool.GeneOntology import GeneOntology
-
+from rich.progress import track
 
 class GOFrequency(ComponentMethod):
 
@@ -49,15 +49,14 @@ class GOFrequency(ComponentMethod):
         del data
 
         self.tell('Calculating GO term priors by domain')
-        sums = self.go_freqs.groupby(['domain', 'goterm'])['protein count'].sum()
-        sums = sums.rename(columns={'protein count': 'domain_sum'})
-        self.go_freqs.merge(sums, left_on='domain', right_on='domain')
-        self.go_freqs['prior'] = self.go_freqs['protein count'] / self.go_freqs['domain_sum']
+        self.go_freqs['domain sum'] = self.go_freqs['protein count'].groupby(
+            self.go_freqs['domain']).transform('sum')
+        self.go_freqs['prior'] = self.go_freqs['protein count'] / self.go_freqs['domain sum']
 
         self.tell('Calculating GO term priors overall')
         all_sum = self.go_freqs['protein count'].sum()
         self.go_freqs['prior_overall'] = self.go_freqs['protein count'] / all_sum
-        self.go_freqs.drop(columns='domain_sum', inplace=True)
+        self.go_freqs.drop(columns='domain sum', inplace=True)
         self.trained_ = True
 
     def save_trained_model(self, output, **kwargs):
@@ -137,11 +136,11 @@ class GOFrequency(ComponentMethod):
         pred = self.go_freqs.sort_values(mode, ascending=False).groupby('domain').head(k)
 
         # @TODO: for sure there is a faster, better way to do this, but it's 3:00 am
-        for protein in proteins:
+        for protein in track(proteins):
             for _, p in pred.iterrows():
                 prediction['protein'].append(protein)
-                prediction['goterm'].append(pred['goterm'])
-                prediction['domain'].append(pred['domain'])
-                prediction['score'].append(pred[mode])
+                prediction['goterm'].append(p['goterm'])
+                prediction['domain'].append(p['domain'])
+                prediction['score'].append(p[mode])
 
         return pd.DataFrame(prediction)

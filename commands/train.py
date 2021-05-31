@@ -4,8 +4,10 @@ from tools.interpro_parser import InterProParser
 from tools.kmer_parser import KMerParser
 from tools.gaf_parser import GAFParser
 from FASTATool.FastaParser import FastaFile
+from GOTool.GeneOntology import GeneOntology
 from component_methods.go_frequency import GOFrequency
 from component_methods.LRComponent import LRComponent
+from component_methods.blast_knn import BLASTkNN
 from rich.progress import track
 import numpy as np
 import pandas as pd
@@ -26,6 +28,9 @@ class Train(FancyApp.FancyApp):
         self.goa_ltr_file = args.goa_ltr
         self.goa_ltr = None
         self.homologs = args.homologs
+        # homologs here contains ALL homologs for the training, this is
+        # * proteins involved in the component models vs GOA
+        # * proteins used for the LTR model vs GOA
         self.output_directory = args.output_directory
         self.protein_index = os.path.join(self.output_directory, 'protein_idx-train.txt')
         self.interpro = args.interpro_output
@@ -48,14 +53,21 @@ class Train(FancyApp.FancyApp):
             f'{os.path.basename(self.kmer)}-train-feature-index.txt')
         self.blast = args.blast_output
         # Note: the difference between blast and homologs is that
-        # blast is to train BLAST-kNN. For training, that means
-        # this is a blast between SwissProt and proteins found in
-        # GOA_components
+        # blast is to train Net-kNN. This means that it contains the
+        # BLAST information between the proteins used for training the LTR model
+        # and STRING. There is no need to do a BLAST of all training proteins
+        # and STRING, since those "prediction" will never be used.
         self.LR_goterms = args.goterms
         if self.LR_goterms != 'all':
             self.LR_goterms = [line.strip() for line in open(args.goterms)]
 
+        self.go_frequency_file = os.path.join(self.output_directory,
+                                              'GO-frequencies.txt')
+        self.obo = args.obo
+        self.go = GeneOntology(self.obo)
+
     def run(self):
+        self.go.build_structure()
         self.load_fastas()
         self.load_annotations()
         # NOTE:
@@ -63,8 +75,69 @@ class Train(FancyApp.FancyApp):
         # testing sets are matching.
         self.make_feature_matrices()
         self.train_component_models()
+        self.predict_for_ltr()
+
+    def predict_for_ltr(self):
+        """
+        This method is simply to organize the prediction of the input to the LTR model.
+        It relies on the models trained before if any training is relevant.
+
+        Basically, all models are saved to disk at this point.
+        """
+        ltr_proteins = sorted(self.fasta_ltr.information['proteins'].keys())
+        ltr_traininig_directory = os.path.join(self.output_directory, 'LTR-training-input')
+        if not os.path.exists(ltr_traininig_directory):
+            os.makedirs(ltr_traininig_directory)
+
+        self.tell('Using component models to create input for LTR models...')
+        self.tell('GO Frequency model...')
+        per_domain_outfile = os.path.join(ltr_traininig_directory, 'GO_frequency-per_domain.tsv')
+        overall_outfile = os.path.join(ltr_traininig_directory, 'GO_frequency-overall.tsv')
+        if not os.path.exists(per_domain_outfile) or not os.path.exists(overall_outfile):
+            go_frequency_model = GOFrequency()
+            go_frequency_model.load_trained_model(self.go_frequency_file, fmt='tsv')
+            if not os.path.exists(per_domain_outfile):
+                self.tell('per domain')
+                per_domain = go_frequency_model.predict(proteins=ltr_proteins, mode='domain')
+                self.tell(f'Saving prediction to {per_domain_outfile}')
+                per_domain.to_csv(per_domain_outfile, sep='\t', index=False)
+            if not os.path.exists(overall_outfile):
+                self.tell('overall')
+                overall = go_frequency_model.predict(proteins=ltr_proteins, mode='overall')
+                self.tell(f'Saving prediction to {overall_outfile}')
+                overall.to_csv(overall_outfile, sep='\t', index=False)
+        else:
+            self.tell('GO frequency LTR files already exist, skipping computation')
+
+        self.tell('BLAST-kNN')
+        blast_knn = BLASTkNN()
+        blast_knn.train(self.goa_components,
+                        blast_file=self.homologs,
+                        proteins=ltr_proteins)
+        blast_knn_cache = os.path.join(self.output_directory, 'BLAST-kNN-cache.pkl')
+        blast_knn.predict(ltr_proteins,
+                          go=self.go,
+                          output_complete_prediction=blast_knn_cache)
+
 
     def train_component_models(self):
+        """
+        The idea here is to train the models that need training using the
+        component training data, and generate the predictions that will be used
+        for the LTR model later on. Some of the models are "properly" trained
+        before using them for prediciton, and some are similarity based to the
+        training dataset, and will make predictions without supervision.
+        """
+        if not os.path.exists(self.go_frequency_file):
+            self.tell('Learning GO frequencies from component annotation file')
+            go_frequency_model = GOFrequency()
+            go_frequency_model.train(self.goa_components,
+                                     obo=self.obo)
+            go_frequency_model.save_trained_model(self.go_frequency_file, fmt='tsv')
+        else:
+            self.tell(f'GO-frequency model is already trained and located here: '
+                      f'{self.go_frequency_file}')
+
         # logistic regression models
         lr_kmer_model = os.path.join(self.output_directory, 'LR-kmer.model')
         if not os.path.exists(lr_kmer_model):
@@ -107,7 +180,6 @@ class Train(FancyApp.FancyApp):
         else:
             self.tell(f'LR-ProFET model is already trained and'
                       f' located here: {lr_profet_model}')
-
 
     def make_feature_matrices(self):
         self.tell('Getting proteins for training index')

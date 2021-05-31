@@ -1,6 +1,6 @@
-from component_methods import ComponentMethod
+from component_methods import ComponentMethod, UntrainedComponentError
 from Utils import ColourClass
-from sklearn.linear_model import LogisticRegression, SGDClassifier
+from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import MaxAbsScaler
 from rich.progress import track
@@ -17,7 +17,7 @@ class LRComponent(ComponentMethod):
     def __init__(self):
         super(LRComponent, self).__init__()
         self.colour = ColourClass.bcolors.BOLD_CYAN
-        self.model_ = None
+        self.model_ = None # this contains the DIRECTORY where LR models are to be saved
         self.type_ = None
         self.trained_ = False
 
@@ -148,8 +148,9 @@ class LRComponent(ComponentMethod):
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-            with open(os.path.join(output_dir, f'{output_dir}.info'), 'w', newline='\n') as f:
+            with open(f'{output_dir}.info', 'w', newline='\n') as f:
                 f.write(f'{self.type_}\n')
+        self.model_ = output_dir
 
         X, y, features, protein_index, term_index = self.build_dataset_(
             feature_file, feature_index_file,
@@ -198,7 +199,7 @@ class LRComponent(ComponentMethod):
         Parameters
         ----------
         model_filename : str
-            Filename to store the frequency information
+            Path to where the trained LR models are stored, it is a **directory** in this case
         kwargs
             No keyword arguments are used in this component
 
@@ -206,10 +207,12 @@ class LRComponent(ComponentMethod):
         -----
         This is designed to load models saved using the `save_trained_model` function of the same
         component, which expects the additional file with .info extension.
+
+
         """
-        with open(model_filename) as f:
+        with open(f'{model_filename}.info') as f:
             self.type_ = f.read().strip()
-        self.model_ = load(model_filename)
+        self.model_ = model_filename
         self.trained_ = True
 
     def predict(self, proteins, k=30, **kwargs):
@@ -246,6 +249,9 @@ class LRComponent(ComponentMethod):
         * files specified in `kwargs` are expected to match those used for training.
         * the `go` object specified in `kwargs` is assumed to have built
         """
+        if not self.trained_:
+            self.warning('The model is not trained, predictions are not possible')
+            raise UntrainedComponentError
         go = kwargs['go']
         feature_file = kwargs['feature_file']
         feature_index_file = kwargs.get('feature_index_file', None)
