@@ -14,3 +14,9 @@ def filter_gaf(args):
     from commands.filter_gaf import FilterGAF
     f = FilterGAF(args)
     f.run()
+
+
+def filter_string(args):
+    from commands.filter_string import FilterSTRING
+    f = FilterSTRING(args)
+    f.run()

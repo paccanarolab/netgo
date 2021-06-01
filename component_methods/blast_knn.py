@@ -107,7 +107,10 @@ class BLASTkNN(ComponentMethod):
 
         if output_complete_prediction is None or \
             (output_complete_prediction and not os.path.exists(output_complete_prediction)):
-            P = self.B_ @ self.I_.values / self.B_.sum(axis=1)[:, np.newaxis]
+            s = self.B_.sum(axis=1)
+            ind_non_zeros = np.where(s != 0)
+            P = self.B_ @ self.I_.values
+            P[ind_non_zeros] = P[ind_non_zeros] / s[ind_non_zeros][:, np.newaxis]
 
             prediction = {key: [] for key in ['protein', 'goterm', 'domain', 'score']}
 
@@ -117,7 +120,7 @@ class BLASTkNN(ComponentMethod):
             tot = len(proteins)
             for p_idx, protein in track(enumerate(sorted(proteins)),
                                         total=tot, description="Predicting..."):
-                for g_idx, goterm in self.I_.columns:
+                for g_idx, goterm in enumerate(self.I_.columns):
                     prediction['protein'].append(protein)
                     prediction['goterm'].append(goterm)
                     prediction['domain'].append(go.find_term(goterm).domain)
@@ -173,3 +176,4 @@ class BLASTkNN(ComponentMethod):
         self.I_ = function_assignment.pivot_table(index='protein', columns='goterm', aggfunc=lambda x: 1, fill_value=0)
         self.tell('Loading Matrix B')
         self.B_ = np.load(model_filename)
+        self.trained_ = True

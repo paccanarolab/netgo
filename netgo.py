@@ -164,6 +164,26 @@ if __name__ == '__main__':
                             help='output file',
                             required=True)
 
+    filter_string = subparsers.add_parser(
+        'filter-string',
+        description='NetGO filter STRING: Given the STRING links and mapping to UniProt files, and a list of uniprot '
+                    'acesssions, this command filters the STRING database to include only interactors of the valid '
+                    'proteins. A new file containing uniprot to uniprot identifiers will be created',
+        help='filter STRING utility'
+    )
+    filter_string.set_defaults(func=commands.filter_string)
+    filter_string.add_argument('--string-links',
+                               help='Path to STRING links',
+                               required=True)
+    filter_string.add_argument('--string-mapping',
+                               help='STRING to UniProt mapping')
+    filter_string.add_argument('--networks',
+                               help='which STRING networks to extract',
+                               nargs='+', required=True)
+    filter_string.add_argument('--output',
+                               help='output file',
+                               required=True)
+
     args = parser.parse_args()
     args.func(args)
 

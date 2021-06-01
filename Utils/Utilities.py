@@ -2,7 +2,8 @@ import sys
 import numpy as np
 import pandas as pd
 import scipy
-
+import subprocess
+import os
 
 def save_list_to_file(item_list, filename):
     with open(filename, 'w') as out:
@@ -114,3 +115,17 @@ def extract_indices_from_fasta(fasta, processing_func=keep_entire_prot_id):
     proteins_df.columns = ['protein idx', 'protein id']
     proteins_df.set_index('protein id', inplace=True)
     return proteins_df
+
+def line_count(filename):
+    if os.name == 'nt':  # windows
+        # apparently the best way to count lines in
+        # windows: https://superuser.com/a/959037/1105734
+        out = subprocess.check_output(r'find /c /v "" {f}'.format(f=filename))
+        return int(out.split(b' ')[-1])
+    else:  # unix
+        # taken from
+        # https://gist.github.com/zed/0ac760859e614cd03652#file-gistfile1-py-L41
+        out = subprocess.Popen(['wc', '-l', filename],
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT).communicate()[0]
+        return int(out.partition(b' ')[0])
