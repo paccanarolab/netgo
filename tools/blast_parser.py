@@ -40,10 +40,12 @@ class BLASTParser(FancyApp.FancyApp):
         """
         query = sorted(query_proteins)
         subject = sorted(subject_proteins)
-        B = np.zeros(len(query), len(subject))
+        B = np.zeros((len(query), len(subject)))
         self.tell('Parsing Blast File')
-        for line in self.blast_output:
+        for line in open(self.blast_output):
             qaccver, saccver, _, _, _, _, _, _, _, _, evalue, bitscore = line.strip().split()
+            evalue = float(evalue)
+            bitscore = float(bitscore)
             if evalue <= evalue_th:
                 if qaccver in query and saccver in subject:
                     B[query.index(qaccver), subject.index(saccver)] = bitscore
