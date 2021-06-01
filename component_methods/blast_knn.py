@@ -114,7 +114,9 @@ class BLASTkNN(ComponentMethod):
             # @TODO: we are calculating the entire thing, and then spitting out the top-k.
             # we could find the top-k from the P matrix instead, but this is useful for now
             # for caching purposes.
-            for p_idx, protein in track(enumerate(sorted(proteins))):
+            tot = len(proteins)
+            for p_idx, protein in track(enumerate(sorted(proteins)),
+                                        total=tot, description="Predicting..."):
                 for g_idx, goterm in self.I_.columns:
                     prediction['protein'].append(protein)
                     prediction['goterm'].append(goterm)
@@ -156,9 +158,18 @@ class BLASTkNN(ComponentMethod):
             Filename to store the frequency information
         kwargs
             No keyword arguments are used in this component
+            * function_assignment : pandas DataFrame
+                must contain columns 'protein' and 'goterm', with an optional 'score' column.
+                Used to recreate matrix :math:`I`, therefore the functional_assignment must
+                be compatible with it (the set of proteins must be the same)
 
         Notes
         -----
         This is designed to load models saved using the `save_trained_model` function of the same
         component, which expects the additional file with .info extension.
         """
+        function_assignment = kwargs['function_assignment']
+        self.tell('Recreating Matrix I')
+        self.I_ = function_assignment.pivot_table(index='protein', columns='goterm', aggfunc=lambda x: 1, fill_value=0)
+        self.tell('Loading Matrix B')
+        self.B_ = np.load(model_filename)

@@ -110,10 +110,17 @@ class Train(FancyApp.FancyApp):
             self.tell('GO frequency LTR files already exist, skipping computation')
 
         self.tell('BLAST-kNN')
+        blast_knn_B = os.path.join(self.output_directory, 'BLAST-kNN-B.npy')
         blast_knn = BLASTkNN()
-        blast_knn.train(self.goa_components,
-                        blast_file=self.homologs,
-                        proteins=ltr_proteins)
+        if not os.path.exists(blast_knn_B):
+            blast_knn.train(self.goa_components,
+                            blast_file=self.homologs,
+                            proteins=ltr_proteins)
+            blast_knn.save_trained_model(blast_knn_B)
+        else:
+            self.tell(f'Found pretrained BLAST-kNN, loading file {blast_knn_B}')
+            blast_knn.load_trained_model(blast_knn_B,
+                                         function_assignment=self.goa_components)
         blast_knn_cache = os.path.join(self.output_directory, 'BLAST-kNN-cache.pkl')
         blast_knn.predict(ltr_proteins,
                           go=self.go,
