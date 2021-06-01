@@ -183,6 +183,9 @@ if __name__ == '__main__':
     filter_string.add_argument('--output',
                                help='output file',
                                required=True)
+    filter_string.add_argument('--proteins',
+                               help='proteins file, one UNIPROT ACCESSION per line',
+                               required=True)
 
     args = parser.parse_args()
     args.func(args)

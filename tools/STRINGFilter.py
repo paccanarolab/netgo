@@ -36,11 +36,6 @@ class STRINGFilter(FancyApp.FancyApp):
             networks to write to the output file
         output : str
             Path to the output file.
-
-        Returns
-        -------
-        mapping : pandas DataFrame
-            columns 'accession', 'string'
         """
         self.tell('Filtering STRING file')
         condition = self.mapping['accession'].isin(proteins)
@@ -77,7 +72,6 @@ class STRINGFilter(FancyApp.FancyApp):
                                     entry.append(fields[names.index(n)])
                                 f.write('\t'.join(entry))
                                 f.write('\n')
-        return self.mapping[condition].copy()
 
     def _load_mapping(self, mapping_file):
         self.tell('Loading UniProt to STRING mapping file')

@@ -9,6 +9,8 @@ class FilterSTRING(FancyApp.FancyApp):
         self.mapping = args.string_mapping
         self.networks = args.networks
         self.output = args.output
+        self.proteins = [l.strip() for l in open(args.proteins)]
 
     def run(self):
-        pass
+        filter = STRINGFilter(self.links, self.mapping)
+        filter.filter_string(self.proteins, self.networks, self.output)
