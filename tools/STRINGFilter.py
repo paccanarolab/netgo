@@ -41,6 +41,7 @@ class STRINGFilter(FancyApp.FancyApp):
         condition = self.mapping['accession'].isin(proteins)
         valid_mapping = self.mapping[condition]
         valid_string = self.mapping[condition]['string_id'].tolist()
+        self.tell(f'found {len(valid_string)} valid proteins')
         # this is probably a very long process, so we count the number of lines to estimate the time it will take to
         # filter STRING
         #total_lines = Utilities.line_count(self.links)
@@ -50,7 +51,7 @@ class STRINGFilter(FancyApp.FancyApp):
         skip = 1
         with open(output, 'w', newline='\n') as f:
             #for line in track(open(self.links), total=total_lines, description='Processing...'):
-            for line in open(self.links):
+            for no, line in enumerate(open(self.links)):
                 if skip > 0:
                     skip -= 1
                     continue
@@ -58,21 +59,24 @@ class STRINGFilter(FancyApp.FancyApp):
                 protein1 = fields[names.index('protein1')]
                 protein2 = fields[names.index('protein2')]
                 if protein1 in valid_string or protein2 in valid_string:
-                    # retrieve both uniprot accessions
-                    condition = valid_mapping['string_id'] == protein1
-                    aliases_p1 = valid_mapping[condition]['accession'].tolist()
+                    f.write(line)
+                if no % 10000 == 0:
+                    self.tell(f'processed {no} lines')
+                    # # retrieve both uniprot accessions
+                    # condition = valid_mapping['string_id'] == protein1
+                    # aliases_p1 = valid_mapping[condition]['accession'].tolist()
 
-                    condition = valid_mapping['string_id'] == protein2
-                    aliases_p2 = valid_mapping[condition]['accession'].tolist()
+                    # condition = valid_mapping['string_id'] == protein2
+                    # aliases_p2 = valid_mapping[condition]['accession'].tolist()
 
-                    if len(aliases_p1) > 0 and len(aliases_p2) > 0:
-                        for p1 in aliases_p1:
-                            for p2 in aliases_p2:
-                                entry = [p1, p2]
-                                for n in networks:
-                                    entry.append(fields[names.index(n)])
-                                f.write('\t'.join(entry))
-                                f.write('\n')
+                    # if len(aliases_p1) > 0 and len(aliases_p2) > 0:
+                    #     for p1 in aliases_p1:
+                    #         for p2 in aliases_p2:
+                    #             entry = [p1, p2]
+                    #             for n in networks:
+                    #                 entry.append(fields[names.index(n)])
+                    #             f.write('\t'.join(entry))
+                    #             f.write('\n')
 
     def _load_mapping(self, mapping_file):
         self.tell('Loading UniProt to STRING mapping file')
