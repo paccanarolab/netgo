@@ -23,6 +23,7 @@ class LRComponent(ComponentMethod):
 
     def build_dataset_(self, feature_file, protein_index_file, fmt,
                        function_assignment=None,
+                       proteins=None,
                        goterms='all'):
         """
         From arguments passed to `train` or `predict`, return a sklearn-compatible dataset
@@ -63,15 +64,21 @@ class LRComponent(ComponentMethod):
 
         self.tell('Building dataset')
 
-        pivot = function_assignment.pivot_table(index='protein', columns='goterm', aggfunc=lambda x: 1, fill_value=0)
-        if goterms != 'all':
-            pivot = pivot[goterms]
+        if function_assignment is not None:
+            pivot = function_assignment.pivot_table(index='protein', columns='goterm', aggfunc=lambda x: 1, fill_value=0)
+            if goterms != 'all':
+                pivot = pivot[goterms]
 
-        term_index = pivot.columns.to_list()
-        protein_index = pivot.index.to_list()
-        X = features[np.where(np.isin(index, protein_index))[0]]
-        y = pivot.values
-
+            term_index = pivot.columns.to_list()
+            protein_index = pivot.index.to_list()
+            X = features[np.where(np.isin(index, protein_index))[0]]
+            y = pivot.values
+        else:
+            # if a functional assignment dataframe is not provided, we only care about the features
+            X = features[np.where(np.isin(index, proteins))[0]]
+            y = None
+            protein_index = None
+            term_index = None
         return X, y, features, protein_index, term_index
 
     def train_single_term(self, X, y, term_index, term, output_dir):
@@ -141,7 +148,7 @@ class LRComponent(ComponentMethod):
         self.handle_ = f'LR-{self.type_}'
         lr_kwargs = kwargs.get('lr_kwargs', None)
         feature_file = kwargs['feature_file']
-        feature_index_file = kwargs.get('feature_index_file', None)
+        protein_index_file = kwargs.get('protein_index_file', None)
         fmt = kwargs.get('fmt', 'npy')
         output_dir = kwargs['output_dir']
         goterms = kwargs['goterms']
@@ -152,8 +159,8 @@ class LRComponent(ComponentMethod):
                 f.write(f'{self.type_}\n')
         self.model_ = output_dir
 
-        X, y, features, protein_index, term_index = self.build_dataset_(
-            feature_file, feature_index_file,
+        X, y, _, protein_index, term_index = self.build_dataset_(
+            feature_file, protein_index_file,
             fmt, function_assignment=function_assignment,
             goterms=goterms
         )
@@ -165,7 +172,6 @@ class LRComponent(ComponentMethod):
         )
         # for term in track(term_index, description='Training models'):
         #     self.train_single_term(X, y, term_index, term, output_dir)
-
 
         self.trained_ = True
 
@@ -229,7 +235,7 @@ class LRComponent(ComponentMethod):
             * feature_file : str
                 Path to a file where to read the features from. How the file will be
                 read will depend on the `fmt` argument
-            * feature_index_file : str
+            * protein_index_file : str
                 Path to a file that has a single protein id that matches the rows of
                 `feature_file`, this is ignored when the `fmt` is `tab` or `pickle`
             * fmt : str, default 'npy'
@@ -254,11 +260,38 @@ class LRComponent(ComponentMethod):
             raise UntrainedComponentError
         go = kwargs['go']
         feature_file = kwargs['feature_file']
-        feature_index_file = kwargs.get('feature_index_file', None)
+        protein_index_file = kwargs.get('protein_index_file', None)
         fmt = kwargs.get('fmt', 'npy')
 
-        X, _, features, index = self.build_dataset_(feature_file,
-                                                    feature_index_file,
-                                                    fmt)
+        fnames = os.listdir(self.model_)
+        total_terms = len(fnames)
+        X, _, _, _, _ = self.build_dataset_(
+            feature_file, protein_index_file,
+            fmt, proteins=proteins
+        )
+        pred_matrix = np.zeros((len(proteins), total_terms))
+        term_index = []
+        domains = []
+        for g_idx, m in track(enumerate(fnames), total=total_terms, description='Predicting...'):
+            lr = load(os.path.join(self.model_, m))
+            # this is just in case sklearn did not sort the labels, probably not necessary
+            pos_idx = np.where(lr.classes_ == 1)[0][0]
+            pred_matrix[:, g_idx] = lr.predict_proba(X)[:, pos_idx]
+            term = m.split('.')[0]
+            term_index.append(term)
+            domains.append(go.find_term(term).domain)
 
-        y_pred = self.model_.predict_proba(X)
+        term_index = np.array(term_index)
+        prediction = {key: [] for key in ['protein', 'goterm', 'domain', 'score']}
+        for d in np.unique(domains):
+            self.tell(f'Extracting top {k} predictions for {d}')
+            domain_index = np.where(domains == d)[0]
+            domain_terms = term_index[domain_index]
+            top_k = np.argsort(pred_matrix[:, domain_index])[:, -1:-k-1:-1]
+            for p_idx, protein in track(enumerate(proteins), total=len(proteins), description='Extracting...'):
+                for i in range(k):
+                    prediction['protein'].append(protein)
+                    prediction['goterm'].append(domain_terms[top_k[i]])
+                    prediction['score'].append(pred_matrix[:, domain_index][top_k[i]])
+                    prediction['domain'].append(d)
+        return pd.DataFrame(prediction)

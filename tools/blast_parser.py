@@ -15,7 +15,8 @@ class BLASTParser(FancyApp.FancyApp):
         super(BLASTParser, self).__init__()
         self.blast_output = blast_output
 
-    def get_homologs(self, query_proteins, subject_proteins, evalue_th):
+    def get_homologs(self, query_proteins, subject_proteins, evalue_th,
+                     query_acc=False, subject_acc=False):
         """
         Calculates a homology matrix with the configuration
 
@@ -27,7 +28,10 @@ class BLASTParser(FancyApp.FancyApp):
             proteins that will be considered to output the matrix
         evalue_th : float
             proteins with BLAST e-value <= `evalue_th` are considered homologs
-
+        query_acc : boolean, default False
+            if True, consider the uniprot accession instead of the full id
+        subject_acc : boolean, default False
+            if True, consider the uniprot accession instead of the full id
         Returns
         -------
         B : numpy array (n_query, n_subject)
@@ -44,6 +48,10 @@ class BLASTParser(FancyApp.FancyApp):
         self.tell('Parsing Blast File')
         for line in open(self.blast_output):
             qaccver, saccver, _, _, _, _, _, _, _, _, evalue, bitscore = line.strip().split()
+            if query_acc:
+                qaccver = qaccver.split('|')[1]
+            if subject_acc:
+                saccver = saccver.split('|')[1]
             evalue = float(evalue)
             bitscore = float(bitscore)
             if evalue <= evalue_th:

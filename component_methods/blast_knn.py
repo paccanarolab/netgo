@@ -60,7 +60,8 @@ class BLASTkNN(ComponentMethod):
         training_proteins = sorted(self.I_.index.tolist())
         proteins = sorted(kwargs['proteins'])
         blast_parser = BLASTParser(blast_file)
-        self.B_ = blast_parser.get_homologs(proteins, training_proteins, evalue_thr)
+        self.B_ = blast_parser.get_homologs(proteins, training_proteins, evalue_thr,
+                                            subject_acc=True)
         self.trained_ = True
 
     def predict(self, proteins, k=30, **kwargs):
@@ -130,6 +131,8 @@ class BLASTkNN(ComponentMethod):
                 prediction.to_pickle(output_complete_prediction)
         else:
             self.tell(f'Found a previously calculated BLAST-kNN file, loading {output_complete_prediction}')
+            prediction = pd.read_pickle(output_complete_prediction)
+        return prediction.sort_values('score', ascending=False).groupby(['protein', 'domain']).head(k)
 
     def save_trained_model(self, output, **kwargs):
         """
