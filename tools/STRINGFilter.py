@@ -43,13 +43,14 @@ class STRINGFilter(FancyApp.FancyApp):
         valid_string = self.mapping[condition]['string_id'].tolist()
         # this is probably a very long process, so we count the number of lines to estimate the time it will take to
         # filter STRING
-        total_lines = Utilities.line_count(self.links)
+        #total_lines = Utilities.line_count(self.links)
         names = ['protein1', 'protein2', 'neighborhood', 'neighborhood_transferred', 'fusion', 'cooccurence',
                  'homology', 'coexpression', 'coexpression_transferred', 'experiments', 'experiments_transferred',
                  'database', 'database_transferred', 'textmining', 'textmining_transferred', 'combined_score']
         skip = 1
         with open(output, 'w', newline='\n') as f:
-            for line in track(open(self.links), total=total_lines, description='Processing...'):
+            #for line in track(open(self.links), total=total_lines, description='Processing...'):
+            for line in open(self.links):
                 if skip > 0:
                     skip -= 1
                     continue
