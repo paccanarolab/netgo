@@ -218,6 +218,7 @@ class LRComponent(ComponentMethod):
         """
         with open(f'{model_filename}.info') as f:
             self.type_ = f.read().strip()
+        self.handle_ = f'LR-{self.type_}'
         self.model_ = model_filename
         self.trained_ = True
 

@@ -45,13 +45,14 @@ class STRINGFilter(FancyApp.FancyApp):
         valid_string = self.mapping[condition]['string_id'].tolist()
         Utilities.save_list_to_file(valid_string, 'valid_string.txt')
         self.tell(f'found {len(valid_string)} valid proteins')
-        # this is probably a very long process, so we count the number of lines to estimate the time it will take to
-        # filter STRING
-        #total_lines = Utilities.line_count(self.links)
         names = ['protein1', 'protein2', 'neighborhood', 'neighborhood_transferred', 'fusion', 'cooccurence',
                  'homology', 'coexpression', 'coexpression_transferred', 'experiments', 'experiments_transferred',
                  'database', 'database_transferred', 'textmining', 'textmining_transferred', 'combined_score']
+        
         skip = 1
+        # this is an attempt to make the process faster, it seems to work for S2F
+        allowed_organism = [i.split('.')[0] for i in valid_string]
+        self.tell(f'working with {len(allowed_organism)} allowed organisms')
         with open(output, 'w', newline='\n') as f:
             #for line in track(open(self.links), total=total_lines, description='Processing...'):
             for no, line in enumerate(open(self.links)):
@@ -61,6 +62,10 @@ class STRINGFilter(FancyApp.FancyApp):
                 fields = line.strip().split()
                 protein1 = fields[names.index('protein1')]
                 protein2 = fields[names.index('protein2')]
+                org1 = protein1.split('.')[0]
+                org2 = protein2.split('.')[0]
+                if not(org1 in allowed_organism or org2 in allowed_organism):
+                    continue
                 if protein1 in valid_string or protein2 in valid_string:
                     f.write(line)
                 if no % 100000 == 0:
