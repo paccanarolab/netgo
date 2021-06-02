@@ -2,6 +2,8 @@ from Utils import FancyApp, Utilities
 from rich.progress import track
 import pandas as pd
 
+import Utils
+
 
 class STRINGFilter(FancyApp.FancyApp):
 
@@ -41,6 +43,7 @@ class STRINGFilter(FancyApp.FancyApp):
         condition = self.mapping['accession'].isin(proteins)
         valid_mapping = self.mapping[condition]
         valid_string = self.mapping[condition]['string_id'].tolist()
+        Utilities.save_list_to_file(valid_string, 'valid_string.txt')
         self.tell(f'found {len(valid_string)} valid proteins')
         # this is probably a very long process, so we count the number of lines to estimate the time it will take to
         # filter STRING
@@ -60,7 +63,7 @@ class STRINGFilter(FancyApp.FancyApp):
                 protein2 = fields[names.index('protein2')]
                 if protein1 in valid_string or protein2 in valid_string:
                     f.write(line)
-                if no % 10000 == 0:
+                if no % 100000 == 0:
                     self.tell(f'processed {no} lines')
                     # # retrieve both uniprot accessions
                     # condition = valid_mapping['string_id'] == protein1
