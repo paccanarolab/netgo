@@ -61,7 +61,7 @@ class BLASTkNN(ComponentMethod):
         proteins = sorted(kwargs['proteins'])
         blast_parser = BLASTParser(blast_file)
         self.B_ = blast_parser.get_homologs(proteins, training_proteins, evalue_thr,
-                                            subject_acc=True)
+                                            query_acc=True,subject_acc=True)
         self.trained_ = True
 
     def predict(self, proteins, k=30, **kwargs):

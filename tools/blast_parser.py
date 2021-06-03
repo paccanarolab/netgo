@@ -1,4 +1,5 @@
-from Utils import FancyApp, ColourClass
+from Utils import FancyApp, Utilities, ColourClass
+from rich.progress import track
 import numpy as np
 
 
@@ -14,6 +15,7 @@ class BLASTParser(FancyApp.FancyApp):
         """
         super(BLASTParser, self).__init__()
         self.blast_output = blast_output
+        self.colour = ColourClass.bcolors.OKGREEN
 
     def get_homologs(self, query_proteins, subject_proteins, evalue_th,
                      query_acc=False, subject_acc=False):
@@ -46,7 +48,8 @@ class BLASTParser(FancyApp.FancyApp):
         subject = sorted(subject_proteins)
         B = np.zeros((len(query), len(subject)))
         self.tell('Parsing Blast File')
-        for line in open(self.blast_output):
+        total = Utilities.line_count(self.blast_output)
+        for line in track(open(self.blast_output), total=total, description='Parsing...'):
             qaccver, saccver, _, _, _, _, _, _, _, _, evalue, bitscore = line.strip().split()
             if query_acc:
                 qaccver = qaccver.split('|')[1]
@@ -59,5 +62,5 @@ class BLASTParser(FancyApp.FancyApp):
                     B[query.index(qaccver), subject.index(saccver)] = bitscore
                 # this could be superfluous, but I'm not 100% sure, so just in case...
                 if qaccver in subject and saccver in query:
-                    B[subject.index(qaccver), query.index(saccver)] = bitscore
+                    B[query.index(saccver), subject.index(qaccver)] = bitscore
         return B

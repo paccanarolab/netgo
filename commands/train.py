@@ -131,6 +131,16 @@ class Train(FancyApp.FancyApp):
         else:
             self.tell('BLAST-kNN LTR file already exist, skipping computation')
 
+        self.tell('LR-InterPro')
+        lr_interpro_prediction = os.path.join(ltr_traininig_directory, 'LR-InterPro.tsv')
+        if not os.path.exists(lr_interpro_prediction):
+            lr_interpro = LRComponent()
+            lr_interpro_model = os.path.join(self.output_directory, 'LR-InterPro.model')
+            lr_interpro.load_trained_model(lr_interpro_model)
+            lr_pred = lr_interpro.predict(ltr_proteins, go=self.go,
+                                          feature_file=self.interpro_features_npy,
+                                          protein_index_file=self.protein_index)
+            lr_pred.to_csv(lr_interpro_prediction, sep='\t', index=False)
 
     def train_component_models(self):
         """

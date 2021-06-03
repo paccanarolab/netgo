@@ -278,7 +278,7 @@ class LRComponent(ComponentMethod):
             # this is just in case sklearn did not sort the labels, probably not necessary
             pos_idx = np.where(lr.classes_ == 1)[0][0]
             pred_matrix[:, g_idx] = lr.predict_proba(X)[:, pos_idx]
-            term = m.split('.')[0]
+            term = m.split('.')[0].replace('_', ':')
             term_index.append(term)
             domains.append(go.find_term(term).domain)
 
