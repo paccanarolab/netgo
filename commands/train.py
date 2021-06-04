@@ -33,33 +33,38 @@ class Train(FancyApp.FancyApp):
         # * proteins used for the LTR model vs GOA
         self.output_directory = args.output_directory
         self.protein_index = os.path.join(self.output_directory, 'protein_idx-train.txt')
+
         self.interpro = args.interpro_output
         self.interpro_features_npy = os.path.join(self.output_directory,
                                                   f'{os.path.basename(self.interpro)}-train.npy')
         self.interpro_features_index = os.path.join(
             self.output_directory,
             f'{os.path.basename(self.interpro)}-train-feature-index.txt')
+
         self.profet = args.profet_output
         self.profet_features_npy = os.path.join(self.output_directory,
                                                 f'{os.path.basename(self.profet)}-train.npy')
         self.profet_features_index = os.path.join(
             self.output_directory,
             f'{os.path.basename(self.profet)}-train-feature-index.txt')
+
         self.kmer = args.kmer
         self.kmer_features_npy = os.path.join(self.output_directory,
                                               f'{os.path.basename(self.kmer)}-train.npy')
         self.kmer_features_index = os.path.join(
             self.output_directory,
             f'{os.path.basename(self.kmer)}-train-feature-index.txt')
+
+        self.LR_goterms = args.goterms
+        if self.LR_goterms != 'all':
+            self.LR_goterms = [line.strip() for line in open(args.goterms)]
+
         self.blast = args.blast_output
         # Note: the difference between blast and homologs is that
         # blast is to train Net-kNN. This means that it contains the
         # BLAST information between the proteins used for training the LTR model
         # and STRING. There is no need to do a BLAST of all training proteins
         # and STRING, since those "prediction" will never be used.
-        self.LR_goterms = args.goterms
-        if self.LR_goterms != 'all':
-            self.LR_goterms = [line.strip() for line in open(args.goterms)]
 
         self.go_frequency_file = os.path.join(self.output_directory,
                                               'GO-frequencies.txt')
@@ -76,6 +81,10 @@ class Train(FancyApp.FancyApp):
         self.make_feature_matrices()
         self.train_component_models()
         self.predict_for_ltr()
+        self.train_ltr()
+
+    def train_ltr(self):
+        pass
 
     def predict_for_ltr(self):
         """
@@ -131,16 +140,53 @@ class Train(FancyApp.FancyApp):
         else:
             self.tell('BLAST-kNN LTR file already exist, skipping computation')
 
+
+        self.tell('LR-ProFET')
+        lr_profet_prediction = os.path.join(ltr_traininig_directory, 'LR-ProFET.tsv')
+        if not os.path.exists(lr_profet_prediction):
+            lr_profet = LRComponent()
+            lr_profet_model = os.path.join(self.output_directory, 'LR-ProFET.model')
+            lr_profet_cache = os.path.join(self.output_directory, 'LR-ProFET.cache')
+            lr_profet.load_trained_model(lr_profet_model)
+            lr_pred = lr_profet.predict(ltr_proteins, go=self.go,
+                                        feature_file=self.profet_features_npy,
+                                        protein_index_file=self.protein_index,
+                                        prediction_cache=lr_profet_cache)
+            lr_pred.to_csv(lr_profet_prediction, sep='\t', index=False)
+        else:
+            self.tell('LR-ProFET LTR file already exists, skipping computation')
+
+        self.tell('LR-kmer')
+        lr_kmer_prediction = os.path.join(ltr_traininig_directory, 'LR-kmer.tsv')
+        if not os.path.exists(lr_kmer_prediction):
+            lr_kmer = LRComponent()
+            lr_kmer_model = os.path.join(self.output_directory, 'LR-kmer.model')
+            lr_kmer_cache = os.path.join(self.output_directory, 'LR-kmer.cache')
+            lr_kmer.load_trained_model(lr_kmer_model)
+            lr_pred = lr_kmer.predict(ltr_proteins, go=self.go,
+                                      feature_file=self.kmer_features_npy,
+                                      protein_index_file=self.protein_index,
+                                      prediction_cache=lr_kmer_cache)
+            lr_pred.to_csv(lr_kmer_prediction, sep='\t', index=False)
+        else:
+            self.tell('LR-kmer LTR file already exists, skipping computation')
+
         self.tell('LR-InterPro')
         lr_interpro_prediction = os.path.join(ltr_traininig_directory, 'LR-InterPro.tsv')
         if not os.path.exists(lr_interpro_prediction):
             lr_interpro = LRComponent()
             lr_interpro_model = os.path.join(self.output_directory, 'LR-InterPro.model')
+            lr_interpro_cache = os.path.join(self.output_directory, 'LR-InterPro.cache')
             lr_interpro.load_trained_model(lr_interpro_model)
             lr_pred = lr_interpro.predict(ltr_proteins, go=self.go,
                                           feature_file=self.interpro_features_npy,
-                                          protein_index_file=self.protein_index)
+                                          protein_index_file=self.protein_index,
+                                          prediction_cache=lr_interpro_cache)
             lr_pred.to_csv(lr_interpro_prediction, sep='\t', index=False)
+        else:
+            self.tell('LR-InterPro LTR file already exists, skipping computation')
+
+
 
     def train_component_models(self):
         """

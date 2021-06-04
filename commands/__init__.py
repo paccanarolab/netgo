@@ -20,3 +20,9 @@ def filter_string(args):
     from commands.filter_string import FilterSTRING
     f = FilterSTRING(args)
     f.run()
+
+
+def map_string(args):
+    from commands.map_string import MapSTRING
+    m = MapSTRING(args)
+    m.run()

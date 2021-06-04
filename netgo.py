@@ -187,6 +187,29 @@ if __name__ == '__main__':
                                help='proteins file, one UNIPROT ACCESSION per line',
                                required=True)
 
+    map_string = subparsers.add_parser(
+        'map-string',
+        description='NetGO map STRING: maps string IDs to UniProt accession IDs. This is necessary for the '
+                    'train and predict commands.',
+        help='filter STRING utility'
+    )
+    map_string.set_defaults(func=commands.map_string)
+    map_string.add_argument('--string-links',
+                               help='Path to STRING links',
+                               required=True)
+    map_string.add_argument('--string-mapping',
+                            help='STRING to UniProt mapping',
+                            required=True)
+    map_string.add_argument('--output',
+                            help='output file',
+                            required=True)
+    map_string.add_argument('--valid-string',
+                            help='only these STRING IDs will be kept, filter out otherwise')
+    map_string.add_argument('--p1-uniprot',
+                            help='If true, the first element will be treated as UniProt and transformed to accession '
+                                 'if necessary.',
+                            action='store_true')
+
     args = parser.parse_args()
     args.func(args)
 

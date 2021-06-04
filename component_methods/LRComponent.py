@@ -1,5 +1,5 @@
 from component_methods import ComponentMethod, UntrainedComponentError
-from Utils import ColourClass
+from Utils import ColourClass, Utilities
 from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import MaxAbsScaler
@@ -244,6 +244,9 @@ class LRComponent(ComponentMethod):
                 Possible values are 'npy', 'npz', 'tab', 'pickle'
             * go : GOTool.GeneOntology.GeneOntology instance
                 An instance to a gene ontology object
+            * prediction_cache : str, default None
+                Path to a file where a cache of the prediction matrix will be stored.
+                By default, the cache is not saved
         Returns
         -------
         pandas DataFrame
@@ -263,36 +266,48 @@ class LRComponent(ComponentMethod):
         feature_file = kwargs['feature_file']
         protein_index_file = kwargs.get('protein_index_file', None)
         fmt = kwargs.get('fmt', 'npy')
+        prediction_cache = kwargs.get('prediction_cache', None)
 
         fnames = os.listdir(self.model_)
         total_terms = len(fnames)
-        X, _, _, _, _ = self.build_dataset_(
-            feature_file, protein_index_file,
-            fmt, proteins=proteins
-        )
-        pred_matrix = np.zeros((len(proteins), total_terms))
-        term_index = []
-        domains = []
-        for g_idx, m in track(enumerate(fnames), total=total_terms, description='Predicting...'):
-            lr = load(os.path.join(self.model_, m))
-            # this is just in case sklearn did not sort the labels, probably not necessary
-            pos_idx = np.where(lr.classes_ == 1)[0][0]
-            pred_matrix[:, g_idx] = lr.predict_proba(X)[:, pos_idx]
-            term = m.split('.')[0].replace('_', ':')
-            term_index.append(term)
-            domains.append(go.find_term(term).domain)
-
+        if prediction_cache is None or not os.path.exists(f'{prediction_cache}.npy'):
+            X, _, _, _, _ = self.build_dataset_(
+                feature_file, protein_index_file,
+                fmt, proteins=proteins
+            )
+            pred_matrix = np.zeros((len(proteins), total_terms))
+            term_index = []
+            domains = []
+            for g_idx, m in track(enumerate(fnames), total=total_terms, description='Predicting...'):
+                lr = load(os.path.join(self.model_, m))
+                # this is just in case sklearn did not sort the labels, probably not necessary
+                pos_idx = np.where(lr.classes_ == 1)[0][0]
+                pred_matrix[:, g_idx] = lr.predict_proba(X)[:, pos_idx]
+                term = m.split('.')[0].replace('_', ':')
+                term_index.append(term)
+                domains.append(go.find_term(term).domain)
+            if prediction_cache:
+                np.save(f'{prediction_cache}.npy', pred_matrix)
+                Utilities.save_list_to_file(term_index, f'{prediction_cache}.term_index')
+                Utilities.save_list_to_file(domains, f'{prediction_cache}.domains')
+        else:
+            self.tell('Found prediction cache, loading')
+            pred_matrix = np.load(f'{prediction_cache}.npy')
+            term_index = [i.strip() for i in open(f'{prediction_cache}.term_index')]
+            domains = [i.strip() for i in open(f'{prediction_cache}.domains')]
+        domains = np.array(domains)
         term_index = np.array(term_index)
         prediction = {key: [] for key in ['protein', 'goterm', 'domain', 'score']}
         for d in np.unique(domains):
             self.tell(f'Extracting top {k} predictions for {d}')
             domain_index = np.where(domains == d)[0]
             domain_terms = term_index[domain_index]
-            top_k = np.argsort(pred_matrix[:, domain_index])[:, -1:-k-1:-1]
+            domain_pred = pred_matrix[:, domain_index]
+            top_k = np.argsort(domain_pred)[:, -1:-k-1:-1]
             for p_idx, protein in track(enumerate(proteins), total=len(proteins), description='Extracting...'):
                 for i in range(k):
                     prediction['protein'].append(protein)
-                    prediction['goterm'].append(domain_terms[top_k[i]])
-                    prediction['score'].append(pred_matrix[:, domain_index][top_k[i]])
+                    prediction['goterm'].append(domain_terms[top_k[p_idx, i]])
+                    prediction['score'].append(domain_pred[p_idx, top_k[p_idx, i]])
                     prediction['domain'].append(d)
         return pd.DataFrame(prediction)
