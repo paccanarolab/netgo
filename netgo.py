@@ -203,8 +203,6 @@ if __name__ == '__main__':
     map_string.add_argument('--output',
                             help='output file',
                             required=True)
-    map_string.add_argument('--valid-string',
-                            help='only these STRING IDs will be kept, filter out otherwise')
     map_string.add_argument('--p1-uniprot',
                             help='If true, the first element will be treated as UniProt and transformed to accession '
                                  'if necessary.',
