@@ -33,9 +33,9 @@ class Predict(FancyApp.FancyApp):
         self.proteins = None
         self.obo = args.obo
         self.go = GeneOntology(self.obo)
-        self.interpro = args.interpro_file
+        self.interpro = args.interpro_output
         self.interpro_features_npy = os.path.join(self.output_directory, 'interpro.npy')
-        self.kmer = args.kmer_file
+        self.kmer = args.kmer_output
         self.kmer_features_npy = os.path.join(self.output_directory, 'kmers.npy')
         self.profet = args.profet_output
         self.profet_features_npy = os.path.join(self.output_directory, 'profet.npy')
@@ -203,3 +203,4 @@ class Predict(FancyApp.FancyApp):
         self.fasta = FastaFile(
             self.fasta_file,
             custom_header=r">(?P<db>[a-z]+)\|(?P<UniqueIdentifier>\w+)\|(?P<EntryName>\w+)")
+        self.fasta.buildBrowsableDict()
