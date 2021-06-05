@@ -59,7 +59,8 @@ class Train(FancyApp.FancyApp):
         if self.LR_goterms != 'all':
             self.LR_goterms = [line.strip() for line in open(args.goterms)]
 
-        self.blast = args.blast_output
+        self.graph_homology = args.graph_homology
+        self.graph = args.graph
         # Note: the difference between blast and homologs is that
         # blast is to train Net-kNN. This means that it contains the
         # BLAST information between the proteins used for training the LTR model

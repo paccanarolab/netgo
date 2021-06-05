@@ -23,12 +23,13 @@ class Predict(FancyApp.FancyApp):
         self.goa_components = None
         self.goa_ltr_file = args.goa_ltr
         self.goa_ltr = None
+        self.graph_homology = args.graph_homology
+        self.graph = args.graph
         self.homologs = args.homologs
-        self.blast = args.blast_output
-        self.output_directory = args.output_directory
-        self.protein_index = os.path.join(self.output_directory, 'protein_idx-predict.txt')
         self.fasta_file = args.fasta
         self.fasta = None
+        self.output_directory = args.output_directory
+        self.protein_index = os.path.join(self.output_directory, 'protein_idx-predict.txt')
         self.proteins = None
         self.obo = args.obo
         self.go = GeneOntology(self.obo)
@@ -41,12 +42,10 @@ class Predict(FancyApp.FancyApp):
         self.go_frequency_file = os.path.join(self.training_directory,
                                               'GO-frequencies.txt')
 
-
     def run(self):
         self.load_fasta()
         self.load_annotations()
         self.make_feature_matrices()
-        pass
 
     def predict_for_ltr(self):
         """
@@ -96,7 +95,6 @@ class Predict(FancyApp.FancyApp):
             blast_knn_pred.to_csv(blast_knn_prediction, sep='\t', index=False)
         else:
             self.tell('BLAST-kNN LTR file already exist, skipping computation')
-
 
         self.tell('LR-ProFET')
         lr_profet_prediction = os.path.join(self.output_directory, 'LR-ProFET.tsv')
