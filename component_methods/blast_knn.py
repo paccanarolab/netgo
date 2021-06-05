@@ -150,6 +150,9 @@ class BLASTkNN(ComponentMethod):
         same `function_assignment` pandas used for training is passed. This save procedure is mainly to avoid
         re-parsing the BLAST file.
         """
+        if not self.trained_:
+            self.warning('The model is not trained, cannot save the model' )
+            raise UntrainedComponentError
         self.tell('Saving BLAST-kNN matrix')
         np.save(output, self.B_)
 

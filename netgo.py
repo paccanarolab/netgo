@@ -142,6 +142,10 @@ if __name__ == '__main__':
                        default='all')
     train.add_argument('--obo',
                        help='Path to a go.obo file containing the GO structure')
+    train.add_argument('--ltr-mode',
+                       help='Determines which model will be trained (NetGO or GOLabeler)',
+                       default='netgo',
+                       choices=['netgo', 'golabeler'])
 
     filter_gaf = subparsers.add_parser(
         'filter-gaf',

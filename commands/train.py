@@ -2,12 +2,12 @@ from Utils import ColourClass, FancyApp, Utilities
 from tools.profet_parser import ProFETParser
 from tools.interpro_parser import InterProParser
 from tools.kmer_parser import KMerParser
-from tools.gaf_parser import GAFParser
 from FASTATool.FastaParser import FastaFile
 from GOTool.GeneOntology import GeneOntology
 from component_methods.go_frequency import GOFrequency
 from component_methods.LRComponent import LRComponent
 from component_methods.blast_knn import BLASTkNN
+from LTR.go_ltr import LearnToRankGO
 from rich.progress import track
 import numpy as np
 import pandas as pd
@@ -70,6 +70,9 @@ class Train(FancyApp.FancyApp):
                                               'GO-frequencies.txt')
         self.obo = args.obo
         self.go = GeneOntology(self.obo)
+        self.ltr_traininig_directory = os.path.join(self.output_directory, 'LTR-training-input')
+        self.ltr_model = os.path.join(self.output_directory, 'LTR-model.json')
+        self.ltr_mode = args.ltr_mode
 
     def run(self):
         self.go.build_structure()
@@ -84,7 +87,10 @@ class Train(FancyApp.FancyApp):
         self.train_ltr()
 
     def train_ltr(self):
-        pass
+        ltr = LearnToRankGO(mode=self.ltr_mode)
+        fa = pd.concat([self.goa_components, self.goa_ltr]).drop_duplicates()
+        ltr.train(fa, component_models_dir=self.ltr_traininig_directory)
+        ltr.save_trained_model(self.ltr_model)
 
     def predict_for_ltr(self):
         """
@@ -94,14 +100,13 @@ class Train(FancyApp.FancyApp):
         Basically, all models are saved to disk at this point.
         """
         ltr_proteins = sorted(self.fasta_ltr.information['proteins'].keys())
-        ltr_traininig_directory = os.path.join(self.output_directory, 'LTR-training-input')
-        if not os.path.exists(ltr_traininig_directory):
-            os.makedirs(ltr_traininig_directory)
+        if not os.path.exists(self.ltr_traininig_directory):
+            os.makedirs(self.ltr_traininig_directory)
 
-        self.tell('Using component models to create input for LTR models...')
+        self.tell('Using component models to create input for LTR model...')
         self.tell('GO Frequency model...')
-        per_domain_outfile = os.path.join(ltr_traininig_directory, 'GO_frequency-per_domain.tsv')
-        overall_outfile = os.path.join(ltr_traininig_directory, 'GO_frequency-overall.tsv')
+        per_domain_outfile = os.path.join(self.ltr_traininig_directory, 'GO_frequency-per_domain.tsv')
+        overall_outfile = os.path.join(self.ltr_traininig_directory, 'GO_frequency-overall.tsv')
         if not os.path.exists(per_domain_outfile) or not os.path.exists(overall_outfile):
             go_frequency_model = GOFrequency()
             go_frequency_model.load_trained_model(self.go_frequency_file, fmt='tsv')
@@ -119,7 +124,7 @@ class Train(FancyApp.FancyApp):
             self.tell('GO frequency LTR files already exist, skipping computation')
 
         self.tell('BLAST-kNN')
-        blast_knn_prediction = os.path.join(ltr_traininig_directory, 'BLAST-kNN.tsv')
+        blast_knn_prediction = os.path.join(self.ltr_traininig_directory, 'BLAST-kNN.tsv')
         if not os.path.exists(blast_knn_prediction):
             blast_knn_B = os.path.join(self.output_directory, 'BLAST-kNN-B.npy')
             blast_knn = BLASTkNN()
@@ -142,7 +147,7 @@ class Train(FancyApp.FancyApp):
 
 
         self.tell('LR-ProFET')
-        lr_profet_prediction = os.path.join(ltr_traininig_directory, 'LR-ProFET.tsv')
+        lr_profet_prediction = os.path.join(self.ltr_traininig_directory, 'LR-ProFET.tsv')
         if not os.path.exists(lr_profet_prediction):
             lr_profet = LRComponent()
             lr_profet_model = os.path.join(self.output_directory, 'LR-ProFET.model')
@@ -157,7 +162,7 @@ class Train(FancyApp.FancyApp):
             self.tell('LR-ProFET LTR file already exists, skipping computation')
 
         self.tell('LR-kmer')
-        lr_kmer_prediction = os.path.join(ltr_traininig_directory, 'LR-kmer.tsv')
+        lr_kmer_prediction = os.path.join(self.ltr_traininig_directory, 'LR-kmer.tsv')
         if not os.path.exists(lr_kmer_prediction):
             lr_kmer = LRComponent()
             lr_kmer_model = os.path.join(self.output_directory, 'LR-kmer.model')
@@ -172,7 +177,7 @@ class Train(FancyApp.FancyApp):
             self.tell('LR-kmer LTR file already exists, skipping computation')
 
         self.tell('LR-InterPro')
-        lr_interpro_prediction = os.path.join(ltr_traininig_directory, 'LR-InterPro.tsv')
+        lr_interpro_prediction = os.path.join(self.ltr_traininig_directory, 'LR-InterPro.tsv')
         if not os.path.exists(lr_interpro_prediction):
             lr_interpro = LRComponent()
             lr_interpro_model = os.path.join(self.output_directory, 'LR-InterPro.model')
