@@ -41,11 +41,22 @@ class Predict(FancyApp.FancyApp):
         self.profet_features_npy = os.path.join(self.output_directory, 'profet.npy')
         self.go_frequency_file = os.path.join(self.training_directory,
                                               'GO-frequencies.txt')
+        self.ltr_model = os.path.join(self.training_directory, 'LTR-model.json')
 
     def run(self):
+        self.go.build_structure()
         self.load_fasta()
         self.load_annotations()
         self.make_feature_matrices()
+        self.predict_for_ltr()
+        self.predict_ltr()
+
+    def predict_ltr(self):
+        ltr = LearnToRankGO(mode=self.ltr_mode)
+        ltr.load_trained_model(self.ltr_model)
+        predictions = ltr.predict(component_models_dir=self.output_directory)
+        prediction_file = os.path.join(self.output_directory, 'predicition.tsv')
+        predictions.to_csv(prediction_file, sep='\t', index=False)
 
     def predict_for_ltr(self):
         """

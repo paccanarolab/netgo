@@ -26,6 +26,25 @@ class LearnToRankGO(ComponentMethod):
         self.trained_ = False
         self.model_ = None
 
+    def _build_dataset(self, component_models_dir):
+        models = ['BLAST-kNN.tsv', 'GO_frequency-per_domain.tsv', 'LR-InterPro.tsv', 'LR-kmer.tsv', 'LR-ProFET.tsv']
+        if self.mode_ == 'netgo':
+            models.append('NET-kNN.tsv')
+        ltr_dataset = None
+        for m in models:
+            model_name = m.split('.')[0]
+            self.tell(f'adding {model_name} to the feature set')
+            df = pd.read_csv(os.path.join(component_models_dir, m), sep='\t').rename(
+                columns={'score': model_name})
+            if ltr_dataset is None:
+                ltr_dataset = df
+            else:
+                ltr_dataset = ltr_dataset.merge(df,
+                                                left_on=['protein', 'goterm', 'domain'],
+                                                right_on=['protein', 'goterm', 'domain'],
+                                                how='outer').fillna(0.)
+        return models, ltr_dataset
+
     def train(self, function_assignment, **kwargs):
         """
 
@@ -40,23 +59,9 @@ class LearnToRankGO(ComponentMethod):
         """
         component_models_dir = kwargs['component_models_dir']
         function_assignment['relevance'] = 1.0
-        models = ['BLAST-kNN.tsv', 'GO_frequency-per_domain.tsv', 'LR-InterPro.tsv', 'LR-kmer.tsv', 'LR-ProFET.tsv']
-        if self.mode_ == 'netgo':
-            models.append('NET-kNN.tsv')
+
         self.tell('Building LTR training dataset')
-        ltr_dataset = None
-        for m in models:
-            model_name = m.split('.')[0]
-            self.tell(f'adding {model_name} to the feature set')
-            df = pd.read_csv(os.path.join(component_models_dir, m), sep='\t').rename(
-                columns={'score': model_name})
-            if ltr_dataset is None:
-                ltr_dataset = df
-            else:
-                ltr_dataset = ltr_dataset.merge(df,
-                                                left_on=['protein', 'goterm', 'domain'],
-                                                right_on=['protein', 'goterm', 'domain'],
-                                                how='outer').fillna(0.)
+        models, ltr_dataset = self._build_dataset(component_models_dir)
         ltr_dataset = ltr_dataset.merge(function_assignment,
                                         left_on=['protein', 'goterm'],
                                         right_on=['protein', 'goterm'],
@@ -100,26 +105,30 @@ class LearnToRankGO(ComponentMethod):
         self.model_.load_model(model_filename)
         self.trained_ = True
 
-    def predict(self, proteins, k=-1, **kwargs):
+    def predict(self, component_models_dir, k=-1, **kwargs):
         """
         Predicts GO terms for every protein in `proteins`
 
         Parameters
         ----------
-        proteins : array (n_proteins, n_componen_models)
-            (protein, GO term) features calculated by the component models
+        component_models_dir : str
+            Path to the folder containing the output of the training models in TSV format
 
         Returns
         -------
-        numpy array
-            predictions of GO terms for each pair in `proteins`
+        pandas DataFrame
+            colums are 'protein', 'goterm', 'domain', 'score', as well as the scores for the componen model, depending
+            on the cofigured mode
 
-        Notes
-        -----
-        the k argument is ignored, and it's here solely to comply with a neat API
         """
         if not self.trained_:
             self.warning('The model is not trained, predictions are not possible')
             raise UntrainedComponentError
+        self.tell('Bulding Dataset for LTR')
+        models, ltr_dataset = self._build_dataset(component_models_dir)
+        features = [i.split('.')[0] for i in models]
+        X = ltr_dataset[features].values
+        train_dmatrix = DMatrix(X)
         self.tell('Predicting using LTR')
-        return self.model_.predict(DMatrix(proteins))
+        ltr_dataset['score'] = self.model_.predict(train_dmatrix)
+        return ltr_dataset
