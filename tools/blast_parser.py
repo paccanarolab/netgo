@@ -1,7 +1,8 @@
 from Utils import FancyApp, Utilities, ColourClass
 from rich.progress import track
 import numpy as np
-
+import pandas as pd
+from scipy import sparse
 
 class BLASTParser(FancyApp.FancyApp):
 
@@ -64,3 +65,50 @@ class BLASTParser(FancyApp.FancyApp):
                 if qaccver in subject and saccver in query:
                     B[query.index(saccver), subject.index(qaccver)] = bitscore
         return B
+
+    def get_top_homologs(self, query_proteins, evalue_th):
+        """
+        This is the same as `get_homologs`, but the condition is that one of the interactors needs to be
+        included in `query_proteins`. In order to build the matrix it needs to load all the blast results into
+        memory, therefore it can be slower.
+
+        Parameters
+        ----------
+        query_proteins : list
+            proteins that will be considered to output the matrix
+        evalue_th : float
+            proteins with BLAST e-value <= `evalue_th` are considered homologs
+
+        Returns
+        -------
+        B : pandas Dataframe with n_query rows
+            columns are 'protein', 'homolog', 'bitscore'
+        subjects_index : list of str
+            the list of proteins on the columns of `B`
+
+        Notes
+        -----
+        This method does not make any assumption about the format of the protein ids you must
+        take care of such cleaning before calling this method.
+
+        This method assumes that query proteins are included in the first column of the tabulas format,
+        that is, that all query proteins are in "qaccver". "saccver" is NOT filtered, and after filtering
+        "qaccver", the remaining entries in "saccver" will be sorted to create `subjects_index`.
+        """
+        names = "qaccver saccver pident length mismatch gapopen qstart qend sstart send evalue bitscore".split()
+        self.tell(f'Loading BLAST results from {self.blast_output}')
+        blast_entries = pd.read_csv(self.blast_output, sep='\t', names=names)
+        self.tell(f'Filtering BLAST results according to e-value (<= {evalue_th})')
+        condition = blast_entries['evalue'] <= evalue_th
+        blast_entries = blast_entries[condition]
+        self.tell('Filtering BLAST query column')
+        condition = blast_entries['qaccver'].isin(query_proteins)
+        blast_entries = blast_entries[condition]
+        self.tell('Building subjects index')
+        subjects_index = sorted(blast_entries['saccver'].unique())
+        self.tell('Building Bitscore matrix')
+        B = sparse.csr_matrix((len(query_proteins), len(subjects_index)))
+        total = blast_entries.shape[0]
+        for _, r in track(blast_entries.iterrows(), total=total, description='Filling matrix...'):
+            B[query_proteins.index(r['qaccver']), subjects_index.index(r['saccver'])] = r['bitscore']
+        return B, subjects_index

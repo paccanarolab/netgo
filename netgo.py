@@ -73,15 +73,17 @@ if __name__ == '__main__':
                               'Columns are: "protein" and "goterm", no header',
                          required=True)
     predict.add_argument('--graph-homology',
-                         help='A tab separated file that lists a protein in the fasta file, a protein from the '
-                              'STRING database, the bit-score, trand the NCBI taxonomy id of the STRING protein in '
-                              'each line',
+                         help='A BLAST output file where the queries are proteins in the provided fasta, and the'
+                              ' subjects are proteins in the provided graph file. the parser assumes blastp with'
+                              ' "outfmt 6" was run to generate this file',
                          required=True)
     predict.add_argument('--graph',
-                         help='Path to the protein interactions file TSV format with p1, p2 and weight columns',
+                         help='Path to the protein interactions file TSV format with p1, p2 and weight columns, '
+                              'no header',
                          required=True)
     predict.add_argument('--homologs',
-                         help='BLAST output file for BLAST-kNN',
+                         help='BLAST output file for BLAST-kNN the parser assumes blastp with'
+                              ' "outfmt 6" was run to generate this file',
                          required=True)
     predict.add_argument('--fasta', help='Path to the protein sequence file', required=True)
     predict.add_argument('--output-directory',
@@ -126,6 +128,10 @@ if __name__ == '__main__':
                             'STRING database, the bit-score, trand the NCBI taxonomy id of the STRING protein in '
                             'each line',
                        required=True)
+    train.add_argument('--graph',
+                         help='Path to the protein interactions file TSV format with p1, p2 and weight columns, '
+                              'no header',
+                         required=True)
     train.add_argument('--output-directory',
                        help='path to an (ideally) empty directory where trained model files will be stored',
                        required=True)

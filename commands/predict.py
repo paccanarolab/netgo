@@ -7,6 +7,7 @@ from GOTool.GeneOntology import GeneOntology
 from component_methods.go_frequency import GOFrequency
 from component_methods.LRComponent import LRComponent
 from component_methods.blast_knn import BLASTkNN
+from component_methods.net_knn import NETkNN
 from LTR.go_ltr import LearnToRankGO
 from rich.progress import track
 import pandas as pd
@@ -151,6 +152,26 @@ class Predict(FancyApp.FancyApp):
             lr_pred.to_csv(lr_interpro_prediction, sep='\t', index=False)
         else:
             self.tell('LR-InterPro LTR file already exists, skipping computation')
+
+        self.tell('Net-kNN')
+        net_knn_prediction = os.path.join(self.output_directory, 'Net-kNN.tsv')
+        if not os.path.exists(net_knn_prediction):
+            net_knn = NETkNN()
+            net_knn_homologs = os.path.join(self.output_directory, 'Net-kNN.homologs.tsv')
+            net_knn_neighborhood = os.path.join(self.output_directory, 'Net-kNN.neighborhood.pkl')
+            if os.path.exists(net_knn_homologs) and os.path.exists(net_knn_neighborhood):
+                self.tell(f'Found pretrained Net-kNN, loading file {net_knn_neighborhood}')
+                net_knn.load_trained_model(self.output_directory)
+            else:
+                net_knn.train(self.goa_components,
+                              string_links=self.graph,
+                              blast_to_string=self.graph_homology,
+                              proteins=self.proteins)
+                net_knn.save_trained_model(self.output_directory)
+            net_knn_pred = net_knn.predict(self.proteins, go=self.go)
+            net_knn_pred.to_csv(net_knn_prediction, sep='\t', index=False)
+        else:
+            self.tell('Net-kNN LTR file already exists, skipping computation')
 
     def make_feature_matrices(self):
         self.tell('Getting proteins for prediction index')
