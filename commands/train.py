@@ -73,8 +73,8 @@ class Train(FancyApp.FancyApp):
         self.obo = args.obo
         self.go = GeneOntology(self.obo)
         self.ltr_traininig_directory = os.path.join(self.output_directory, 'LTR-training-input')
-        self.ltr_model = os.path.join(self.output_directory, 'LTR-model.json')
         self.ltr_mode = args.ltr_mode
+        self.ltr_model = os.path.join(self.output_directory, f'LTR-model-{self.ltr_mode}.json')
 
     def run(self):
         self.go.build_structure()
@@ -305,7 +305,7 @@ class Train(FancyApp.FancyApp):
             interpro_matrix = np.zeros((len(proteins), len(interpro_features.feature_cols)))
             for idx, protein in track(enumerate(proteins),
                                       total=len(proteins),
-                                      description='Building ProFET Feature Matrix'):
+                                      description='Building InterPro Feature Matrix'):
                 interpro_matrix[idx] = interpro_features[protein]
             self.tell('Saving InterPro feature matrix')
             np.save(self.interpro_features_npy, interpro_matrix)
@@ -320,7 +320,7 @@ class Train(FancyApp.FancyApp):
             kmer_matrix = np.zeros((len(proteins), len(kmer_features.feature_cols)))
             for idx, protein in track(enumerate(proteins),
                                       total=len(proteins),
-                                      description='Building ProFET Feature Matrix'):
+                                      description='Building KMer Feature Matrix'):
                 kmer_matrix[idx] = kmer_features[protein]
             self.tell('Saving KMer feature matrix')
             np.save(self.kmer_features_npy, kmer_matrix)

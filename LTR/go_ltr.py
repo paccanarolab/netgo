@@ -87,7 +87,7 @@ class LearnToRankGO(ComponentMethod):
         if not self.trained_:
             self.warning('The model is not trained, cannot save the model')
             raise UntrainedComponentError
-        self.tell('Saving BLAST-kNN matrix')
+        self.tell('Saving LTR model')
         self.model_.save_model(output)
 
     def load_trained_model(self, model_filename, **kwargs):

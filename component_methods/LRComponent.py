@@ -98,14 +98,16 @@ class LRComponent(ComponentMethod):
         output_dir : str
             output_directory where the model will be saved
         """
-        model = make_pipeline(
-            MaxAbsScaler(),
-            SGDClassifier(loss='log', n_jobs=35)
-        )
-        model.fit(X, y[:, term_index.index(term)])
-        self.save_trained_model(output_dir,
-                                goterm=term,
-                                model=model)
+        # check cache, as this is the most expensive step and we often run out of memory:
+        if not os.path.exists(os.path.join(output_dir, f'{term.replace(":" ,"_")}.lr_model')):
+            model = make_pipeline(
+                MaxAbsScaler(),
+                SGDClassifier(loss='log', n_jobs=35)
+            )
+            model.fit(X, y[:, term_index.index(term)])
+            self.save_trained_model(output_dir,
+                                    goterm=term,
+                                    model=model)
 
     def train(self, function_assignment, **kwargs):
         """
